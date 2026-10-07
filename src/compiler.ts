@@ -74,6 +74,29 @@ function toolRunner(logs: string[], onProgress?: ProgressFn) {
   };
 }
 
+let prefetched: Promise<void> | undefined;
+
+/**
+ * Fetches the ~100 MB toolchain once, reporting progress. @yowasp/clang's clang
+ * wrapper first runs an internal `-###` probe that drops `fetchProgress`, so a
+ * plain `clang --version` is used to trigger the download with the callback.
+ */
+export function prefetchToolchain(onProgress?: ProgressFn): Promise<void> {
+  prefetched ??= (async () => {
+    try {
+      await commands.clang(["--version"], {}, {
+        stdout: null,
+        stderr: null,
+        fetchProgress: onProgress ? (e) => onProgress(e.doneLength, e.totalLength) : undefined,
+      });
+    } catch (e) {
+      prefetched = undefined; // allow a retry after a failed download
+      throw e;
+    }
+  })();
+  return prefetched;
+}
+
 /** Syntax-only pass for editor diagnostics. Returns clang's output lines (`/src/file:line:col: error: ...`). */
 export async function check(files: Record<string, string>, entry = "hook.c"): Promise<string[]> {
   const logs: string[] = [];
@@ -89,6 +112,7 @@ export async function check(files: Record<string, string>, entry = "hook.c"): Pr
 
 export async function compile(input: BuildInput): Promise<BuildResult> {
   const logs: string[] = [];
+  if (input.onProgress) await prefetchToolchain(input.onProgress);
   const run = toolRunner(logs, input.onProgress);
   const entry = input.entry ?? "hook.c";
 
