@@ -21,7 +21,10 @@ export type BuildInput = {
   entry?: string; // the .c file to compile, default "hook.c"
   postWasm: ArrayBuffer | Uint8Array; // compiled crates/xahau-hook-wasm
   tools: { cleaner: ArrayBuffer | Uint8Array; guard: ArrayBuffer | Uint8Array }; // tools/*.wasm (WASI reactors)
+  onProgress?: ProgressFn; // toolchain download progress (first run fetches ~100 MB)
 };
+
+export type ProgressFn = (doneBytes: number, totalBytes: number) => void;
 
 // Final flags; documented in README.
 export const clangArgs = (entry: string) => [
@@ -45,7 +48,7 @@ export const LLD_ARGS = [
 const dec = new TextDecoder();
 
 /** Collects a tool's stdout/stderr into `logs`, one entry per line. */
-function toolRunner(logs: string[]) {
+function toolRunner(logs: string[], onProgress?: ProgressFn) {
   let pending = "";
   const sink = (bytes: Uint8Array | null) => {
     if (!bytes) return;
@@ -54,7 +57,12 @@ function toolRunner(logs: string[]) {
     pending = lines.pop() ?? "";
     logs.push(...lines);
   };
-  const opts = { stdout: sink, stderr: sink, decodeASCII: false as const };
+  const opts = {
+    stdout: sink,
+    stderr: sink,
+    decodeASCII: false as const,
+    fetchProgress: onProgress ? (e: { doneLength: number; totalLength: number }) => onProgress(e.doneLength, e.totalLength) : undefined,
+  };
   return async (name: "clang" | "wasm-ld", args: string[], files: Tree): Promise<Tree> => {
     logs.push(`$ ${name} ${args.join(" ")}`);
     try {
@@ -81,7 +89,7 @@ export async function check(files: Record<string, string>, entry = "hook.c"): Pr
 
 export async function compile(input: BuildInput): Promise<BuildResult> {
   const logs: string[] = [];
-  const run = toolRunner(logs);
+  const run = toolRunner(logs, input.onProgress);
   const entry = input.entry ?? "hook.c";
 
   // Fixed virtual paths: /src/<files>, /build/*
