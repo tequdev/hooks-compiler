@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test:determinism": "node --experimental-strip-types scripts/determinism.ts"
+    "test:determinism": "node --experimental-strip-types scripts/determinism.ts",
+    "build:tools": "node --experimental-strip-types scripts/build-tools.ts"
   },
   "dependencies": {
     "@digital-go-jp/design-tokens": "^2.0.1",

@@ -37,6 +37,8 @@ button.onclick = async () => {
     }
     const [r] = results;
     $("raw-size").textContent = String(r.rawSize);
+    $("cleaned-size").textContent = String(r.cleanedSize);
+    $("guard").textContent = `valid, worst-case execution count ${r.hookCost}`;
     $("final-size").textContent = String(r.finalSize);
     $("sha256").textContent = r.sha256;
     $("imports").textContent = r.imports.join("\n") || "(none)";
