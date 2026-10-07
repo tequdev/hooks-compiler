@@ -28,7 +28,7 @@ crates/xahau-hook-wasm        Rust post-processor (wasmparser + wasm-encoder) â†
 scripts/determinism.ts        same pipeline in Node, 3 builds, exits non-zero if hashes differ
 ```
 
-Virtual filesystem layout inside the toolchain: `/src/hook.c`, `/include/hookapi.h`, `/build/hook.o`, `/build/hook.raw.wasm`.
+Virtual filesystem layout inside the toolchain: every source and header under `/src/` (`/src/hook.c`, `/src/hookapi.h`, ...), outputs under `/build/`. `check()` runs the same clang with `-fsyntax-only` for editor diagnostics.
 
 The Rust crate currently does: validate the module, require a `hook` function export, drop every custom section (`name`, `producers`, `target_features`), re-encode. It also prints the final module as WAT via `wasmprinter`. It exposes a raw C ABI (`alloc_bytes`, `process_raw`, `info_raw`, `wat_raw`, `result_ptr/len`) so no wasm-bindgen toolchain is needed.
 
@@ -57,7 +57,7 @@ The first Compile fetches ~100 MB of toolchain wasm from the dev server; later b
 
 ```sh
 clang -target wasm32 -O2 -nostdlib -nostartfiles -Werror=implicit-function-declaration \
-      -I/include -c /src/hook.c -o /build/hook.o
+      -I/src -c /src/hook.c -o /build/hook.o
 wasm-ld --no-entry --allow-undefined --export=hook /build/hook.o -o /build/hook.raw.wasm
 ```
 

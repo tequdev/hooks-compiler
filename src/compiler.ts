@@ -17,21 +17,21 @@ export type BuildResult = {
 };
 
 export type BuildInput = {
-  source: string;
-  header: string; // contents of hookapi/hookapi.h
+  files: Record<string, string>; // every .c/.h, placed under /src; headers resolve via -I/src
+  entry?: string; // the .c file to compile, default "hook.c"
   postWasm: ArrayBuffer | Uint8Array; // compiled crates/xahau-hook-wasm
   tools: { cleaner: ArrayBuffer | Uint8Array; guard: ArrayBuffer | Uint8Array }; // tools/*.wasm (WASI reactors)
 };
 
 // Final flags; documented in README.
-export const CLANG_ARGS = [
+export const clangArgs = (entry: string) => [
   "-target", "wasm32",
   "-O2",
   "-nostdlib",
   "-nostartfiles",
   "-Werror=implicit-function-declaration",
-  "-I/include",
-  "-c", "/src/hook.c",
+  "-I/src",
+  "-c", `/src/${entry}`,
   "-o", "/build/hook.o",
 ];
 export const LLD_ARGS = [
@@ -44,8 +44,8 @@ export const LLD_ARGS = [
 
 const dec = new TextDecoder();
 
-export async function compile(input: BuildInput): Promise<BuildResult> {
-  const logs: string[] = [];
+/** Collects a tool's stdout/stderr into `logs`, one entry per line. */
+function toolRunner(logs: string[]) {
   let pending = "";
   const sink = (bytes: Uint8Array | null) => {
     if (!bytes) return;
@@ -55,7 +55,7 @@ export async function compile(input: BuildInput): Promise<BuildResult> {
     logs.push(...lines);
   };
   const opts = { stdout: sink, stderr: sink, decodeASCII: false as const };
-  const run = async (name: "clang" | "wasm-ld", args: string[], files: Tree): Promise<Tree> => {
+  return async (name: "clang" | "wasm-ld", args: string[], files: Tree): Promise<Tree> => {
     logs.push(`$ ${name} ${args.join(" ")}`);
     try {
       return (await commands[name](args, files, opts)) as Tree;
@@ -64,10 +64,29 @@ export async function compile(input: BuildInput): Promise<BuildResult> {
       throw e;
     }
   };
+}
 
-  // Fixed virtual paths: /src/hook.c, /include/hookapi.h, /build/*
-  const tree: Tree = { src: { "hook.c": input.source }, include: { "hookapi.h": input.header }, build: {} };
-  const afterClang = await run("clang", CLANG_ARGS, tree);
+/** Syntax-only pass for editor diagnostics. Returns clang's output lines (`/src/file:line:col: error: ...`). */
+export async function check(files: Record<string, string>, entry = "hook.c"): Promise<string[]> {
+  const logs: string[] = [];
+  const run = toolRunner(logs);
+  const args = clangArgs(entry).filter((a, i, all) => a !== "-c" && all[i - 1] !== "-o" && a !== "-o");
+  try {
+    await run("clang", ["-fsyntax-only", ...args], { src: { ...files }, build: {} });
+  } catch {
+    // diagnostics are in `logs`; a non-zero exit is the expected outcome for broken code
+  }
+  return logs.slice(1); // drop the "$ clang ..." line
+}
+
+export async function compile(input: BuildInput): Promise<BuildResult> {
+  const logs: string[] = [];
+  const run = toolRunner(logs);
+  const entry = input.entry ?? "hook.c";
+
+  // Fixed virtual paths: /src/<files>, /build/*
+  const tree: Tree = { src: { ...input.files }, build: {} };
+  const afterClang = await run("clang", clangArgs(entry), tree);
   const afterLld = await run("wasm-ld", LLD_ARGS, afterClang);
   const raw = (afterLld.build as Tree)["hook.raw.wasm"] as Uint8Array;
   logs.push(`hook.raw.wasm: ${raw.length} bytes`);

@@ -10,7 +10,7 @@ const worker = self as unknown as Worker; // DedicatedWorkerGlobalScope, without
 worker.onmessage = async (ev: MessageEvent<{ id: number; source: string }>) => {
   const { id, source } = ev.data;
   try {
-    const result: BuildResult = await compile({ source, header, postWasm: await postWasm, tools: await tools });
+    const result: BuildResult = await compile({ files: { "hook.c": source, "hookapi.h": header }, postWasm: await postWasm, tools: await tools });
     worker.postMessage({ id, result }, [result.wasm.buffer as ArrayBuffer]);
   } catch (e) {
     worker.postMessage({ id, error: String(e instanceof Error ? e.message : e) });

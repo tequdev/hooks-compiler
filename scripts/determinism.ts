@@ -12,7 +12,7 @@ const [source, header, postWasm, cleaner, guard] = await Promise.all([
 
 const hashes: string[] = [];
 for (let i = 0; i < 3; i++) {
-  const r = await compile({ source, header, postWasm, tools: { cleaner, guard } });
+  const r = await compile({ files: { "hook.c": source, "hookapi.h": header }, postWasm, tools: { cleaner, guard } });
   hashes.push(r.sha256);
   console.log(`build ${i + 1}: raw=${r.rawSize} cleaned=${r.cleanedSize} final=${r.finalSize} sha256=${r.sha256}`);
   if (i === 0) console.log(`imports: ${r.imports.join(", ")}\nexports: ${r.exports.join(", ")}\nhookCost: ${r.hookCost} cbakCost: ${r.cbakCost}`);
