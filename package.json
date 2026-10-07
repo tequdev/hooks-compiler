@@ -1,0 +1,21 @@
+{
+  "name": "hooks-compiler",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build:wasm": "cargo build --release --target wasm32-unknown-unknown --manifest-path crates/xahau-hook-wasm/Cargo.toml && cp crates/xahau-hook-wasm/target/wasm32-unknown-unknown/release/xahau_hook_wasm.wasm public/xahau-hook-wasm.wasm",
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test:determinism": "node --experimental-strip-types scripts/determinism.ts"
+  },
+  "dependencies": {
+    "@digital-go-jp/design-tokens": "^2.0.1",
+    "@yowasp/clang": "21.1.4-3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "typescript": "^5.6.0",
+    "vite": "^6.0.0"
+  }
+}
