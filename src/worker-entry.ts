@@ -4,8 +4,10 @@
 import { check, compile, type OptLevel, prefetchToolchain } from "./compiler.ts";
 
 const worker = self as unknown as Worker;
+// Resolve against the worker script URL (not a `new URL(\`./${x}\`, import.meta.url)`
+// template, which Vite would rewrite into a static file map).
 const bytes = (name: string) =>
-  fetch(new URL(`./${name}`, import.meta.url)).then((r) => {
+  fetch(new URL(name, self.location.href)).then((r) => {
     if (!r.ok) throw new Error(`${name}: HTTP ${r.status}`);
     return r.arrayBuffer();
   });
