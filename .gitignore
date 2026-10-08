@@ -5,3 +5,4 @@ aube-lock.yaml
 public/xahau-hook-wasm.wasm
 public/hook-cleaner.wasm
 public/guard-checker.wasm
+dist-worker

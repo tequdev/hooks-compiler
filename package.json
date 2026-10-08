@@ -8,7 +8,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "test:determinism": "node --experimental-strip-types scripts/determinism.ts",
-    "build:tools": "node --experimental-strip-types scripts/build-tools.ts"
+    "build:tools": "node --experimental-strip-types scripts/build-tools.ts",
+    "build:worker": "vite build --config vite.worker.config.ts && rm -f dist-worker/*.ts && cp public/xahau-hook-wasm.wasm public/hook-cleaner.wasm public/guard-checker.wasm dist-worker/"
   },
   "dependencies": {
     "@digital-go-jp/design-tokens": "^2.0.1",

@@ -22,14 +22,17 @@ export type BuildInput = {
   postWasm: ArrayBuffer | Uint8Array; // compiled crates/xahau-hook-wasm
   tools: { cleaner: ArrayBuffer | Uint8Array; guard: ArrayBuffer | Uint8Array }; // tools/*.wasm (WASI reactors)
   onProgress?: ProgressFn; // toolchain download progress (first run fetches ~100 MB)
+  opt?: OptLevel; // clang optimization level, default -O2
 };
+
+export type OptLevel = "-O0" | "-O1" | "-O2" | "-O3" | "-Os";
 
 export type ProgressFn = (doneBytes: number, totalBytes: number) => void;
 
 // Final flags; documented in README.
-export const clangArgs = (entry: string) => [
+export const clangArgs = (entry: string, opt: OptLevel = "-O2") => [
   "-target", "wasm32",
-  "-O2",
+  opt,
   "-nostdlib",
   "-nostartfiles",
   "-Werror=implicit-function-declaration",
@@ -118,7 +121,7 @@ export async function compile(input: BuildInput): Promise<BuildResult> {
 
   // Fixed virtual paths: /src/<files>, /build/*
   const tree: Tree = { src: { ...input.files }, build: {} };
-  const afterClang = await run("clang", clangArgs(entry), tree);
+  const afterClang = await run("clang", clangArgs(entry, input.opt), tree);
   const afterLld = await run("wasm-ld", LLD_ARGS, afterClang);
   const raw = (afterLld.build as Tree)["hook.raw.wasm"] as Uint8Array;
   logs.push(`hook.raw.wasm: ${raw.length} bytes`);
