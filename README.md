@@ -19,7 +19,7 @@ The toolchain is clang 22 from `@live-codes/clang-wasm` (pinned to an exact vers
 - Browser: copy the assets somewhere your app serves, then pass that URL as `baseUrl`:
 
 ```sh
-npx --package @live-codes/clang-wasm clang-wasm-copy-assets public/clang
+npx hooks-compiler-copy-assets public/clang
 ```
 
 ## Usage
@@ -43,7 +43,24 @@ worker.postMessage({ id: 1, type: "compile", files: { "hook.c": source }, opt: "
 // replies: { id, progress: number } ..., then { id, result } | { id, lines } | { id, error }
 ```
 
-`WorkerRequest` and `WorkerResponse` types are exported from `hooks-compiler/worker`. `pnpm build:worker` also produces a standalone bundle in `dist-worker/`, including `dist-worker/clang/`, which the worker uses when no `baseUrl` is sent.
+`WorkerRequest` and `WorkerResponse` types are exported from `hooks-compiler/worker`. Until `@live-codes/clang-wasm` fixes its progress callback (registered after the load), only `progress: 1` arrives; show an indeterminate state.
+
+Standalone worker (no bundler configuration): the package ships `dist-worker/` (worker.js, binaryen.js, hook-cleaner.wasm; built by `pnpm build:worker`). Copy it to a static directory, put the toolchain assets in `clang/` beside it, and the worker uses that directory when no `baseUrl` is sent:
+
+```sh
+cp -r node_modules/hooks-compiler/dist-worker public/compiler
+npx hooks-compiler-copy-assets public/compiler/clang
+```
+
+```ts
+const worker = new Worker("/compiler/worker.js", { type: "module" });
+```
+
+webpack / Next.js: `binaryen` has a top-level await, so enable it; nothing else is needed.
+
+```js
+config.experiments = { ...config.experiments, topLevelAwait: true };
+```
 
 Vite: keep this package out of dependency pre-bundling (it rewrites `import.meta.url`, so the cleaner wasm 404s in dev) and allow top-level await:
 

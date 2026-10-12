@@ -171,12 +171,14 @@ function withMvpModule<T>(binaryen: Binaryen, bytes: Uint8Array, invalid: string
   }
 }
 
-// Loaded once per process from the package itself (Vite stubs the node import in browser bundles).
+// Loaded once per process from the package itself. Bundlers emit the wasm as an asset from the
+// `new URL(..., import.meta.url)`; in Node it is read with fs via process.getBuiltinModule (>= 20.16),
+// which keeps any `node:` import out of browser bundles (webpack 5 cannot resolve the scheme).
 let cleaner: Promise<WebAssembly.Module> | undefined;
 function cleanerModule() {
   return (cleaner ??= (async () => {
     const url = new URL("./hook-cleaner.wasm", import.meta.url);
-    const bytes = url.protocol === "file:" ? await (await import("node:fs/promises")).readFile(url) : await (await fetch(url)).arrayBuffer();
+    const bytes = url.protocol === "file:" ? await process.getBuiltinModule("node:fs/promises").readFile(url) : await (await fetch(url)).arrayBuffer();
     return WebAssembly.compile(bytes as BufferSource);
   })());
 }
