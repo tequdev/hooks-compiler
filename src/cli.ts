@@ -14,7 +14,7 @@ try {
   if (!paths.length) throw new Error(usage);
   const files = Object.fromEntries(await Promise.all(paths.map(async (p) => [basename(p), await readFile(p, "utf8")])));
   const entry = basename(paths[0]);
-  const r = await compile({ files, entry, opt, onProgress: (d, t) => process.stderr.write(`\rtoolchain ${Math.floor((d / t) * 100)}%`) }); // keeps yowasp's default stdout progress off
+  const r = await compile({ files, entry, opt, onProgress: (f) => process.stderr.write(`\rtoolchain ${Math.floor(f * 100)}%`) });
   console.error(r.logs.join("\n"));
   const out = values.output ?? entry.replace(/\.c$/, "") + ".wasm";
   await writeFile(out, r.wasm);

@@ -23,4 +23,14 @@ test("same source compiles to identical, valid MVP bytes", async (t) => {
 test("check() reports compiler errors", async () => {
   const lines = await check({ "hook.c": "int hook(int r){ return undeclared(r); }" });
   assert.ok(lines.some((l) => l.includes("error:")), lines.join("\n"));
+  assert.ok(!lines.some((l) => /process exited/.test(l)), lines.join("\n"));
+});
+
+test("changed source changes the hash, the original reproduces it (memfs overlay)", async () => {
+  const a = await compile({ files });
+  const changed = files["hook.c"].replace("Hello from", "Changed");
+  const b = await compile({ files: { ...files, "hook.c": changed } });
+  const c = await compile({ files });
+  assert.notEqual(b.sha256, a.sha256);
+  assert.equal(c.sha256, a.sha256);
 });

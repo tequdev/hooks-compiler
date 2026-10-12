@@ -13,7 +13,14 @@ C source → clang.wasm → hook.o → wasm-ld.wasm → hook.raw.wasm
 pnpm add hooks-compiler
 ```
 
-The first compile downloads the ~100 MB `@yowasp/clang` toolchain (cached afterwards). `@yowasp/clang` is pinned to `21.1.4-3`, the newest release with npm provenance.
+The toolchain is clang 22 from `@live-codes/clang-wasm` (pinned to an exact version), which wraps the clang/lld wasm builds from `@wasm-idle/llvm-core`.
+
+- Node: nothing to do, the ~28 MB of assets ship in the package.
+- Browser: copy the assets somewhere your app serves, then pass that URL as `baseUrl`:
+
+```sh
+npx --package @live-codes/clang-wasm clang-wasm-copy-assets public/clang
+```
 
 ## Usage
 
@@ -26,22 +33,22 @@ const r = await compile({ files: { "hook.c": source, "hookapi.h": header } }); /
 r.wasm; r.sha256; r.imports; r.exports; r.wat; r.logs;
 ```
 
-Options: `entry`, `opt` (clang level, `-O0` to `-Oz`, default `-O2`), `onProgress(done, total)` for the toolchain download. `check(files, entry?)` runs `clang -fsyntax-only` and returns diagnostic lines. `prefetchToolchain(onProgress?)` downloads the toolchain ahead of the first compile.
+Options: `entry`, `opt` (clang level, `-O0` to `-Oz`, default `-O2`), `baseUrl` (toolchain assets, required in browsers), `onProgress(fraction)` (0..1; see `ProgressFn` for the 0.3.0 caveat) for the toolchain download. `check(files, entry?, { baseUrl, onProgress })` runs `clang -fsyntax-only` and returns diagnostic lines. `prefetchToolchain({ baseUrl, onProgress })` downloads the toolchain ahead of the first compile.
 
 Worker:
 
 ```ts
 const worker = new Worker(new URL("hooks-compiler/worker", import.meta.url), { type: "module" });
-worker.postMessage({ id: 1, type: "compile", files: { "hook.c": source }, opt: "-Oz" }); // or type: "check"
-// replies: { id, progress: { done, total } } ..., then { id, result } | { id, lines } | { id, error }
+worker.postMessage({ id: 1, type: "compile", files: { "hook.c": source }, opt: "-Oz", baseUrl: new URL("/clang/", location.href).href }); // or type: "check"
+// replies: { id, progress: number } ..., then { id, result } | { id, lines } | { id, error }
 ```
 
-`WorkerRequest` and `WorkerResponse` types are exported from `hooks-compiler/worker`. `pnpm build:worker` also produces a standalone bundle in `dist-worker/`.
+`WorkerRequest` and `WorkerResponse` types are exported from `hooks-compiler/worker`. `pnpm build:worker` also produces a standalone bundle in `dist-worker/`, including `dist-worker/clang/`, which the worker uses when no `baseUrl` is sent.
 
-Vite: keep the wasm-loading packages out of dependency pre-bundling (it rewrites `import.meta.url`, so the wasm files 404 in dev) and allow top-level await:
+Vite: keep this package out of dependency pre-bundling (it rewrites `import.meta.url`, so the cleaner wasm 404s in dev) and allow top-level await:
 
 ```ts
-optimizeDeps: { exclude: ["@yowasp/clang", "hooks-compiler"], esbuildOptions: { target: "esnext" } }
+optimizeDeps: { exclude: ["hooks-compiler"], esbuildOptions: { target: "esnext" } }
 ```
 
 CLI:
@@ -51,6 +58,8 @@ hooks-compiler hook.c hookapi.h -o hook.wasm -Oz   # logs on stderr, "<out> <byt
 ```
 
 ## Exact arguments
+
+clang runs its driver in-process and only with `-c`; wasm-ld is invoked separately.
 
 ```sh
 clang -target wasm32 -mcpu=mvp -O2 -nostdlib -nostartfiles -Werror=implicit-function-declaration \
@@ -75,7 +84,7 @@ Not part of the pipeline. Validate the output with the xahaud `hook_validate` RP
 ## Development
 
 ```sh
-pnpm install        # also builds src/hook-cleaner.wasm from tools/hook-cleaner (prepare)
+pnpm install        # also builds src/hook-cleaner.wasm from tools/hook-cleaner and copies the toolchain assets to public/clang (prepare)
 pnpm dev            # demo page: compiles 3 times and compares hashes
 pnpm build          # tsc → dist/ (+ hook-cleaner.wasm)
 pnpm build:worker   # standalone worker bundle → dist-worker/

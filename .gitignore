@@ -3,3 +3,4 @@ dist
 dist-worker
 aube-lock.yaml
 src/hook-cleaner.wasm
+public/clang

@@ -23,14 +23,14 @@ const build = (src: string) =>
       else if ("result" in m) resolve(m.result);
     };
     worker.addEventListener("message", onMessage);
-    const req: WorkerRequest = { id, type: "compile", files: { "hook.c": src, "hookapi.h": header } };
+    const req: WorkerRequest = { id, type: "compile", files: { "hook.c": src, "hookapi.h": header }, baseUrl: new URL("/clang/", location.href).href };
     worker.postMessage(req);
   });
 
 const RUNS = 3;
 button.onclick = async () => {
   button.disabled = true;
-  log.textContent = `compiling ${RUNS}x (first run also loads ~100 MB of clang/lld wasm)...\n`;
+  log.textContent = `compiling ${RUNS}x (first run also loads ~28 MB of clang/lld wasm)...\n`;
   $("deterministic").textContent = "";
   $<HTMLAnchorElement>("download").hidden = true;
   try {

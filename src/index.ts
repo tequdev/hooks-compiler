@@ -1,16 +1,22 @@
-import { commands, Exit, type Tree } from "@yowasp/clang";
+import { compilerDiagnostics, createToolchain, type Toolchain } from "@live-codes/clang-wasm/toolchain";
 import { instantiateReactor } from "./wasi.ts";
 
 export type OptLevel = "-O0" | "-O1" | "-O2" | "-O3" | "-Os" | "-Oz";
 
-export type ProgressFn = (doneBytes: number, totalBytes: number) => void;
+// 0..1. @live-codes/clang-wasm 0.3.0 registers its progress callback only after the load, so until
+// that is fixed upstream only the final 1 (emitted here) arrives; treat the download as indeterminate.
+export type ProgressFn = (fraction: number) => void;
+
+export type ToolchainOptions = {
+  baseUrl?: string | URL; // directory holding the assets from `clang-wasm-copy-assets`; required in browsers, Node reads node_modules
+  onProgress?: ProgressFn; // toolchain download progress
+};
 
 export type CompileInput = {
   files: Record<string, string>; // every .c/.h, placed under /src; headers resolve via -I/src
   entry?: string; // the .c file to compile, default "hook.c"
   opt?: OptLevel; // clang optimization level, default -O2
-  onProgress?: ProgressFn; // toolchain download progress (first run fetches ~100 MB)
-};
+} & ToolchainOptions;
 
 export type CompileResult = {
   wasm: Uint8Array;
@@ -44,78 +50,82 @@ const LLD_ARGS = [
   "-o", "/build/hook.raw.wasm",
 ];
 
-const dec = new TextDecoder();
-
 class ToolExit extends Error {}
 
-/** Collects a tool's stdout/stderr into `logs`, one entry per line. */
-function toolRunner(logs: string[]) {
-  let pending = "";
-  const sink = (bytes: Uint8Array | null) => {
-    if (!bytes) return;
-    pending += dec.decode(bytes);
-    const lines = pending.split("\n");
-    pending = lines.pop() ?? "";
-    logs.push(...lines);
-  };
-  const opts = { stdout: sink, stderr: sink, decodeASCII: false as const };
-  return async (name: "clang" | "wasm-ld", args: string[], files: Tree): Promise<Tree> => {
-    logs.push(`$ ${name} ${args.join(" ")}`);
-    try {
-      return (await commands[name](args, files, opts)) as Tree;
-    } catch (e) {
-      if (e instanceof Exit) throw new ToolExit(`${name} exited with code ${e.code}\n${logs.join("\n")}`);
-      throw e;
-    }
-  };
+type Tools = { tc: Toolchain; clang: WebAssembly.Module; lld: WebAssembly.Module };
+const toolchains = new Map<string, Promise<Tools>>();
+
+function getToolchain({ baseUrl, onProgress }: ToolchainOptions = {}): Promise<Tools> {
+  const key = String(baseUrl ?? "");
+  let p = toolchains.get(key);
+  if (!p) {
+    p = (async () => {
+      const tc = await createToolchain({ baseUrl, onProgress });
+      const { runtime } = tc;
+      const [clang, lld] = await Promise.all([runtime.getModule(runtime.assetUrls.clang), runtime.getModule(runtime.assetUrls.lld)]);
+      runtime.memfs.addDirectory("build");
+      onProgress?.(1);
+      return { tc, clang, lld };
+    })();
+    toolchains.set(key, p);
+    p.catch(() => toolchains.delete(key)); // allow a retry after a failed download
+  }
+  return p;
 }
 
-let prefetched: Promise<void> | undefined;
+/** Fetches the toolchain once, reporting progress. */
+export async function prefetchToolchain(opts?: ToolchainOptions): Promise<void> {
+  await getToolchain(opts);
+}
 
-/**
- * Fetches the ~100 MB toolchain once, reporting progress. @yowasp/clang's clang
- * wrapper first runs an internal `-###` probe that drops `fetchProgress`, so a
- * plain `clang --version` is used to trigger the download with the callback.
- */
-export function prefetchToolchain(onProgress?: ProgressFn): Promise<void> {
-  prefetched ??= (async () => {
-    try {
-      await commands.clang(["--version"], {}, {
-        stdout: null,
-        stderr: null,
-        fetchProgress: onProgress ? (e) => onProgress(e.doneLength, e.totalLength) : undefined,
-      });
-    } catch (e) {
-      prefetched = undefined; // allow a retry after a failed download
-      throw e;
-    }
-  })();
-  return prefetched;
+/** Runs one tool (must hold the toolchain lock), appending its diagnostic lines to `logs`; throws ToolExit on a non-zero exit. */
+async function runTool(tc: Toolchain, mod: WebAssembly.Module, name: string, args: string[], logs: string[]): Promise<void> {
+  logs.push(`$ ${name} ${args.join(" ")}`);
+  const { raw, error } = await tc.captureCompilerOutput(() => tc.runtime.run(mod, true, name, ...args));
+  const lines = compilerDiagnostics(raw).filter((l) => !/^Error: process exited with code \d+\.$/.test(l));
+  logs.push(...lines);
+  if (error) {
+    const code = (error as { code?: unknown }).code;
+    if (typeof code !== "number") throw error;
+    throw new ToolExit(`${name} exited with code ${code}\n${logs.join("\n")}`);
+  }
+}
+
+// ponytail: memfs has no delete, so files from earlier compiles stay visible in /src (a stale
+// `#include "old.h"` could still resolve). Upgrade path: a fresh directory per compile.
+// `path` is relative (`src/x.c`): tc.addFile breaks on a leading slash; clang still sees it as /src/x.c.
+function put(tc: Toolchain, path: string, text: string) {
+  if (tc.runtime.memfs.hasFile(path)) tc.runtime.memfs.setFile(path, new TextEncoder().encode(text));
+  else tc.addFile(path, text);
 }
 
 /** Syntax-only pass for editor diagnostics. Returns clang's output lines (`/src/file:line:col: error: ...`). */
-export async function check(files: Record<string, string>, entry = "hook.c"): Promise<string[]> {
-  const logs: string[] = [];
-  const run = toolRunner(logs);
-  try {
-    await run("clang", ["-fsyntax-only", ...CLANG_FLAGS, `/src/${entry}`], { src: { ...files }, build: {} });
-  } catch (e) {
-    if (!(e instanceof ToolExit)) throw e; // diagnostics are in `logs`; a non-zero exit is the expected outcome for broken code
-  }
-  return logs.slice(1); // drop the "$ clang ..." line
+export async function check(files: Record<string, string>, entry = "hook.c", opts?: ToolchainOptions): Promise<string[]> {
+  const { tc, clang } = await getToolchain(opts);
+  return tc.lock(async () => {
+    for (const [name, text] of Object.entries(files)) put(tc, `src/${name}`, text);
+    const logs: string[] = [];
+    try {
+      await runTool(tc, clang, "clang", ["-fsyntax-only", ...CLANG_FLAGS, `/src/${entry}`], logs);
+    } catch (e) {
+      if (!(e instanceof ToolExit)) throw e; // a non-zero exit is the expected outcome for broken code
+    }
+    return logs.slice(1); // drop the "$ clang ..." line
+  });
 }
 
 export async function compile(input: CompileInput): Promise<CompileResult> {
   const logs: string[] = [];
-  if (input.onProgress) await prefetchToolchain(input.onProgress);
-  const run = toolRunner(logs);
   const entry = input.entry ?? "hook.c";
+  const { tc, clang, lld } = await getToolchain(input);
 
-  // Fixed virtual paths: /src/<files>, /build/*
-  const tree: Tree = { src: { ...input.files }, build: {} };
-  const afterClang = await run("clang", [...CLANG_FLAGS, input.opt ?? "-O2", "-c", `/src/${entry}`, "-o", "/build/hook.o"], tree);
-  const afterLld = await run("wasm-ld", LLD_ARGS, afterClang);
-  const raw = (afterLld.build as Tree)["hook.raw.wasm"] as Uint8Array;
+  // The runtime is single-process and shared: hold the lock for every file write and tool run.
+  const raw = await tc.lock(async () => {
+    for (const [name, text] of Object.entries(input.files)) put(tc, `src/${name}`, text);
+    await runTool(tc, clang, "clang", [...CLANG_FLAGS, input.opt ?? "-O2", "-c", `/src/${entry}`, "-o", "/build/hook.o"], logs);
+    await runTool(tc, lld, "wasm-ld", LLD_ARGS, logs);
+    return Uint8Array.from(tc.runtime.memfs.getFileContents("/build/hook.raw.wasm")); // a view into wasm memory: copy
+  });
   logs.push(`hook.raw.wasm: ${raw.length} bytes`);
 
   // Before the cleaner: it strips the `memory` export, and wasm-opt's DCE would then drop the memory/data segment.

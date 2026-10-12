@@ -1,5 +1,5 @@
 // Builds src/worker.ts as a standalone ES-module worker bundle (dist-worker/),
-// with the toolchain wasm beside it, so any app can `new Worker("/compiler/worker.js", { type: "module" })`.
+// with the toolchain assets (public/clang, copied by `pnpm install`) in dist-worker/clang/ beside it, so any app can `new Worker("/compiler/worker.js", { type: "module" })`.
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { defineConfig } from "vite";

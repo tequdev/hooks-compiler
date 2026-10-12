@@ -1,8 +1,9 @@
 # Vendored post-processing tool
 
-`hook-cleaner` is compiled to a `wasm32-wasip1` reactor module by
+`hook-cleaner` is compiled to a WASI reactor module by
 `scripts/build-cleaner.ts` (run by `pnpm install` via `prepare`) using the same
-`@yowasp/clang` toolchain that compiles hooks. The output, `src/hook-cleaner.wasm`,
+`@live-codes/clang-wasm` toolchain that compiles hooks. It is linked as a reactor
+with an inline `_initialize` stub, because the shipped sysroot lacks `crt1-reactor.o`. The output, `src/hook-cleaner.wasm`,
 is gitignored. The source is the unmodified upstream file.
 
 | Path | Upstream | License |

@@ -8,9 +8,9 @@ importers:
 
   .:
     dependencies:
-      '@yowasp/clang':
-        specifier: 21.1.4-3
-        version: 21.1.4-3
+      '@live-codes/clang-wasm':
+        specifier: 0.3.0
+        version: 0.3.0
       binaryen:
         specifier: 132.0.0
         version: 132.0.0
@@ -29,6 +29,9 @@ importers:
         version: 6.4.4(@types/node@22.20.5)
 
 packages:
+
+  '@bjorn3/browser_wasi_shim@0.4.2':
+    resolution: {integrity: sha512-/iHkCVUG3VbcbmEHn5iIUpIrh7a7WPiwZ3sHy4HZKZzBdSadwdddYDZAII2zBvQYV0Lfi8naZngPCN7WPHI/hA==}
 
   '@digital-go-jp/design-tokens@2.0.1':
     resolution: {integrity: sha512-F0SWlZDghgWuD6AzD4IawL9PlO+GD2Ns8s72g9FvBSKcgDX3hxzB8fjW64PqqonHocEpLj7Lj+LGbkh6eSgZ0g==}
@@ -189,6 +192,11 @@ packages:
     cpu: [x64]
     os: [win32]
 
+  '@live-codes/clang-wasm@0.3.0':
+    resolution: {integrity: sha512-huXYRvmE1hwZfykw71W9/5N0Yz0yFhOPreg5cZaWGp29IY+v4w04vXUpXPPJxUftnNF41DzPG4LgoWGFeSxV9g==}
+    engines: {node: '>=20'}
+    hasBin: true
+
   '@napi-rs/lzma-linux-x64-gnu@1.5.1':
     resolution: {integrity: sha512-oTXEIha4SsuXdTA4Iyskj0kpdx2yVXdhd75c2v3xGrHFfVMsbhTPZU/nMPL4sWKo4pBHm3aucLaqGlF696dTyQ==}
     engines: {node: ^22.20 || ^24.12 || >=25}
@@ -340,8 +348,11 @@ packages:
   '@types/node@22.20.5':
     resolution: {integrity: sha512-U2+DNr+wSjpsTS/wZGYHq7GcwfuSmKiKvoPvK22zwTlRhU91yOniN4qRR5KhIjvif7ysw/dz/hKmfDH0Ris4aA==}
 
-  '@yowasp/clang@21.1.4-3':
-    resolution: {integrity: sha512-xeAA7iFvDZ/C32d/h/BDSpmxEZePnorpi+EfaORDWwJN3c9rFXHvUVoHb+alo8U8jNaxJMWBLLGecT55D/YQKA==}
+  '@wasm-idle/core@1.1.0':
+    resolution: {integrity: sha512-Hy31NUUcRs1FLXFTPGYFTC6tkzsUbbthpcH8xDq8zL783oyXh6fFQ1xwZO4OUN2D0upfC/SJs3HQ9C/EBODJXA==}
+
+  '@wasm-idle/llvm-core@1.1.0':
+    resolution: {integrity: sha512-cbtAux+hDwrfwZfU2pagqQDQsPXyV8G3r4Xgibi/l8p66NnspStHkCYJ3GJCifOh5dgWfOpfpfd1MZoEAec0YA==}
 
   binaryen@132.0.0:
     resolution: {integrity: sha512-4Usg7yEvwO3FMso3Oov6qkOOHSod1IEv+boKkh77kTljM+eNBouqCTbqWswGzbG+vDNO/b/v2C4gfEh1WgB9Lg==}
@@ -360,6 +371,9 @@ packages:
     peerDependenciesMeta:
       picomatch:
         optional: true
+
+  fflate@0.8.3:
+    resolution: {integrity: sha512-tbZNuJrLwGUp3zshBtdy4W+ORxZuIh8a5ilyIEQDC5rY1f3U20JMry0Ll3WBzU58EZKsEuJFXhb5gwv8CsPvgA==}
 
   fsevents@2.3.3:
     resolution: {integrity: sha512-5xoDfX+fL7faATnagmWPpbFtwh/R77WmMMqqHGS65C3vvB0YHrgF+B1YmZ3441tMj5n63k0212XNoJwzlhffQw==}
@@ -445,6 +459,8 @@ packages:
 
 snapshots:
 
+  '@bjorn3/browser_wasi_shim@0.4.2': {}
+
   '@digital-go-jp/design-tokens@2.0.1': {}
 
   '@esbuild/aix-ppc64@0.25.12':
@@ -524,6 +540,11 @@ snapshots:
 
   '@esbuild/win32-x64@0.25.12':
     optional: true
+
+  '@live-codes/clang-wasm@0.3.0':
+    dependencies:
+      '@bjorn3/browser_wasi_shim': 0.4.2
+      '@wasm-idle/llvm-core': 1.1.0
 
   '@napi-rs/lzma-linux-x64-gnu@1.5.1':
     optional: true
@@ -609,7 +630,13 @@ snapshots:
     dependencies:
       undici-types: 6.21.0
 
-  '@yowasp/clang@21.1.4-3': {}
+  '@wasm-idle/core@1.1.0': {}
+
+  '@wasm-idle/llvm-core@1.1.0':
+    dependencies:
+      '@bjorn3/browser_wasi_shim': 0.4.2
+      '@wasm-idle/core': 1.1.0
+      fflate: 0.8.3
 
   binaryen@132.0.0: {}
 
@@ -645,6 +672,8 @@ snapshots:
   fdir@6.5.0(picomatch@4.0.7):
     optionalDependencies:
       picomatch: 4.0.7
+
+  fflate@0.8.3: {}
 
   fsevents@2.3.3:
     optional: true
