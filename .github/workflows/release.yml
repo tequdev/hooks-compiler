@@ -1,0 +1,25 @@
+# Publishes to npm on a version tag (v1.2.3) via npm Trusted Publishing (OIDC, no token):
+# register this repo + workflow file under the package's "Trusted publisher" settings on npmjs.com.
+name: Release
+on:
+  push:
+    tags: ["v*"]
+permissions:
+  contents: read
+  id-token: write
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24 # npm >= 11.5 for OIDC publishing
+          registry-url: https://registry.npmjs.org
+      - run: test "v$(node -p "require('./package.json').version")" = "$GITHUB_REF_NAME" # tag must match package.json
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test
+      - run: npm publish --provenance --access public # prepack runs pnpm build

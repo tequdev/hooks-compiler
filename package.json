@@ -3,6 +3,12 @@
   "version": "0.1.0",
   "description": "Deterministic Xahau C Hook compiler: clang, lld, wasm-opt and hook-cleaner, all running as WebAssembly in the browser or Node",
   "license": "MIT",
+  "author": "tequ",
+  "repository": { "type": "git", "url": "git+https://github.com/tequdev/hooks-compiler.git" },
+  "homepage": "https://github.com/tequdev/hooks-compiler#readme",
+  "bugs": { "url": "https://github.com/tequdev/hooks-compiler/issues" },
+  "keywords": ["xahau", "hooks", "webassembly", "wasm", "clang", "compiler"],
+  "engines": { "node": ">=20" },
   "type": "module",
   "exports": {
     ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
