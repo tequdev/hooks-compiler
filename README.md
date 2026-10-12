@@ -56,7 +56,7 @@ npx hooks-compiler-copy-assets public/compiler/clang
 const worker = new Worker("/compiler/worker.js", { type: "module" });
 ```
 
-webpack / Next.js: `binaryen` has a top-level await, so enable it; nothing else is needed.
+webpack: `binaryen` has a top-level await, so enable it; nothing else is needed.
 
 ```js
 config.experiments = { ...config.experiments, topLevelAwait: true };
