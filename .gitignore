@@ -1,8 +1,5 @@
 node_modules
 dist
-crates/*/target
-aube-lock.yaml
-public/xahau-hook-wasm.wasm
-public/hook-cleaner.wasm
-public/guard-checker.wasm
 dist-worker
+aube-lock.yaml
+src/hook-cleaner.wasm

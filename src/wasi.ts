@@ -1,4 +1,4 @@
-// Minimal wasi_snapshot_preview1 shim for the C/C++ reactor tools (hook-cleaner, guard-checker).
+// Minimal wasi_snapshot_preview1 shim for the C/C++ reactor tools (hook-cleaner).
 const EBADF = 8;
 
 export type Reactor = { exports: Record<string, any> & { memory: WebAssembly.Memory }; output(): string };

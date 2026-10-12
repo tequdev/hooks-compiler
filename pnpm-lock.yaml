@@ -8,18 +8,21 @@ importers:
 
   .:
     dependencies:
-      '@digital-go-jp/design-tokens':
-        specifier: ^2.0.1
-        version: 2.0.1
       '@yowasp/clang':
         specifier: 21.1.4-3
         version: 21.1.4-3
+      binaryen:
+        specifier: 132.0.0
+        version: 132.0.0
     devDependencies:
+      '@digital-go-jp/design-tokens':
+        specifier: ^2.0.1
+        version: 2.0.1
       '@types/node':
         specifier: ^22.20.5
         version: 22.20.5
       typescript:
-        specifier: ^5.6.0
+        specifier: ^5.7.0
         version: 5.9.3
       vite:
         specifier: ^6.0.0
@@ -340,6 +343,10 @@ packages:
   '@yowasp/clang@21.1.4-3':
     resolution: {integrity: sha512-xeAA7iFvDZ/C32d/h/BDSpmxEZePnorpi+EfaORDWwJN3c9rFXHvUVoHb+alo8U8jNaxJMWBLLGecT55D/YQKA==}
 
+  binaryen@132.0.0:
+    resolution: {integrity: sha512-4Usg7yEvwO3FMso3Oov6qkOOHSod1IEv+boKkh77kTljM+eNBouqCTbqWswGzbG+vDNO/b/v2C4gfEh1WgB9Lg==}
+    hasBin: true
+
   esbuild@0.25.12:
     resolution: {integrity: sha512-bbPBYYrtZbkt6Os6FiTLCTFxvq4tt3JKall1vRwshA3fdVztsLAatFaZobhkBC8/BrPetoa0oksYoKXoG4ryJg==}
     engines: {node: '>=18'}
@@ -603,6 +610,8 @@ snapshots:
       undici-types: 6.21.0
 
   '@yowasp/clang@21.1.4-3': {}
+
+  binaryen@132.0.0: {}
 
   esbuild@0.25.12:
     optionalDependencies:

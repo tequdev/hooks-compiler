@@ -1,6 +1,8 @@
 import "@digital-go-jp/design-tokens/dist/tokens-simple.css";
 import hello from "../examples/hello.c?raw";
-import type { BuildResult } from "./compiler.ts";
+import header from "../examples/hookapi.h?raw";
+import type { CompileResult } from "../src/index.ts";
+import type { WorkerRequest, WorkerResponse } from "../src/worker.ts";
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const source = $<HTMLTextAreaElement>("source");
@@ -8,18 +10,21 @@ const log = $<HTMLPreElement>("log");
 const button = $<HTMLButtonElement>("compile");
 source.value = hello;
 
-const worker = new Worker(new URL("./compiler-worker.ts", import.meta.url), { type: "module" });
+const worker = new Worker(new URL("../src/worker.ts", import.meta.url), { type: "module" });
 let nextId = 0;
 const build = (src: string) =>
-  new Promise<BuildResult>((resolve, reject) => {
+  new Promise<CompileResult>((resolve, reject) => {
     const id = nextId++;
-    const onMessage = (ev: MessageEvent) => {
-      if (ev.data.id !== id) return;
+    const onMessage = (ev: MessageEvent<WorkerResponse>) => {
+      const m = ev.data;
+      if (m.id !== id || "progress" in m) return;
       worker.removeEventListener("message", onMessage);
-      ev.data.error ? reject(new Error(ev.data.error)) : resolve(ev.data.result);
+      if ("error" in m) reject(new Error(m.error));
+      else if ("result" in m) resolve(m.result);
     };
     worker.addEventListener("message", onMessage);
-    worker.postMessage({ id, source: src });
+    const req: WorkerRequest = { id, type: "compile", files: { "hook.c": src, "hookapi.h": header } };
+    worker.postMessage(req);
   });
 
 const RUNS = 3;
@@ -29,7 +34,7 @@ button.onclick = async () => {
   $("deterministic").textContent = "";
   $<HTMLAnchorElement>("download").hidden = true;
   try {
-    const results: BuildResult[] = [];
+    const results: CompileResult[] = [];
     for (let i = 0; i < RUNS; i++) {
       const r = await build(source.value);
       results.push(r);
@@ -37,8 +42,7 @@ button.onclick = async () => {
     }
     const [r] = results;
     $("raw-size").textContent = String(r.rawSize);
-    $("cleaned-size").textContent = String(r.cleanedSize);
-    $("guard").textContent = `valid, worst-case execution count ${r.hookCost}`;
+    $("optimized-size").textContent = String(r.optimizedSize);
     $("final-size").textContent = String(r.finalSize);
     $("sha256").textContent = r.sha256;
     $("imports").textContent = r.imports.join("\n") || "(none)";

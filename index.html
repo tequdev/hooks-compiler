@@ -74,7 +74,7 @@
   <header>Xahau Hook Browser Compiler</header>
   <main>
     <h1>Compile a C Hook entirely in the browser</h1>
-    <p class="description">clang.wasm → wasm-ld.wasm → hook-cleaner.wasm → xahau-hook-wasm.wasm → guard-checker.wasm. Nothing is sent to a server. Compile runs 3 times and compares the SHA-256 to check determinism.</p>
+    <p class="description">clang.wasm → wasm-ld.wasm → wasm-opt (binaryen.js) → hook-cleaner.wasm. Nothing is sent to a server. Compile runs 3 times and compares the SHA-256 to check determinism.</p>
 
     <label for="source">hook.c</label>
     <textarea id="source" spellcheck="false"></textarea>
@@ -87,9 +87,8 @@
     <h2>Result</h2>
     <dl>
       <dt>raw wasm size</dt><dd id="raw-size">-</dd>
-      <dt>cleaned wasm size</dt><dd id="cleaned-size">-</dd>
+      <dt>optimized wasm size</dt><dd id="optimized-size">-</dd>
       <dt>final wasm size</dt><dd id="final-size">-</dd>
-      <dt>guard check</dt><dd id="guard">-</dd>
       <dt>SHA-256</dt><dd id="sha256">-</dd>
       <dt>imports</dt><dd><pre id="imports">-</pre></dd>
       <dt>exports</dt><dd><pre id="exports">-</pre></dd>
@@ -101,6 +100,6 @@
     <h2>Build log</h2>
     <pre id="log">-</pre>
   </main>
-  <script type="module" src="/src/main.ts"></script>
+  <script type="module" src="/demo/main.ts"></script>
 </body>
 </html>

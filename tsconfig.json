@@ -9,5 +9,5 @@
     "allowImportingTsExtensions": true,
     "types": ["vite/client", "node"]
   },
-  "include": ["src", "scripts", "vite.config.ts"]
+  "include": ["src", "scripts", "test", "demo", "vite.config.ts", "vite.worker.config.ts"]
 }
