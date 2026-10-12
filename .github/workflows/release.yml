@@ -1,14 +1,19 @@
-# Publishes to npm on a version tag (v1.2.3) via npm Trusted Publishing (OIDC, no token):
-# register this repo + workflow file under the package's "Trusted publisher" settings on npmjs.com.
+# Manual release: publishes package.json's version to npm, then creates the v<version> tag and a
+# GitHub release. Defaults to a dry run. npm auth is Trusted Publishing (OIDC, no token): register
+# this repo + workflow file under the package's "Trusted publisher" settings on npmjs.com.
 name: Release
 on:
-  push:
-    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run (no publish, no tag, no release)"
+        type: boolean
+        default: true
 permissions:
-  contents: read
-  id-token: write
+  contents: write # tag + release
+  id-token: write # npm provenance / OIDC
 jobs:
-  publish:
+  release:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -19,7 +24,13 @@ jobs:
         with:
           node-version: 24 # npm >= 11.5 for OIDC publishing
           registry-url: https://registry.npmjs.org
-      - run: test "v$(node -p "require('./package.json').version")" = "$GITHUB_REF_NAME" # tag must match package.json
+      - id: v
+        run: echo "tag=v$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+      - run: git fetch --tags && ! git rev-parse -q --verify "refs/tags/${{ steps.v.outputs.tag }}" # version must be unreleased
       - run: pnpm install --frozen-lockfile
       - run: pnpm test
-      - run: npm publish --provenance --access public # prepack runs pnpm build
+      - run: npm publish --provenance --access public ${{ inputs.dry_run && '--dry-run' || '' }} # prepack runs pnpm build
+      - if: ${{ !inputs.dry_run }}
+        run: gh release create "${{ steps.v.outputs.tag }}" --target "$GITHUB_SHA" --generate-notes # also creates the tag
+        env:
+          GH_TOKEN: ${{ github.token }}
