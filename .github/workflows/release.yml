@@ -1,6 +1,6 @@
 # Manual release: publishes package.json's version to npm, then creates the v<version> tag and a
-# GitHub release. Defaults to a dry run. npm auth is Trusted Publishing (OIDC, no token): register
-# this repo + workflow file under the package's "Trusted publisher" settings on npmjs.com.
+# GitHub release. Defaults to a dry run. npm auth: the NPM_TOKEN secret if set, else Trusted Publishing
+# (OIDC): register this repo + workflow file under the package's "Trusted publisher" settings on npmjs.com.
 name: Release
 on:
   workflow_dispatch:
@@ -14,6 +14,7 @@ permissions:
   id-token: write # npm provenance / OIDC
 jobs:
   release:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -29,7 +30,13 @@ jobs:
       - run: git fetch --tags && ! git rev-parse -q --verify "refs/tags/${{ steps.v.outputs.tag }}" # version must be unreleased
       - run: pnpm install --frozen-lockfile
       - run: pnpm test
-      - run: npm publish --provenance --access public ${{ inputs.dry_run && '--dry-run' || '' }} # prepack runs pnpm build
+      # Skipped when the version is already on npm, so a run that failed after publishing can be re-run.
+      - run: npm view "hooks-compiler@${TAG#v}" version >/dev/null 2>&1 && echo "already published" || npm publish --provenance --access public ${{ inputs.dry_run && '--dry-run' || '' }} # prepack runs pnpm build
+        env:
+          TAG: ${{ steps.v.outputs.tag }}
+          # NPM_TOKEN when set (needed for the first publish, before a trusted publisher can exist); otherwise keep
+          # setup-node's placeholder so OIDC is used (an empty token has been reported to break OIDC).
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN || env.NODE_AUTH_TOKEN }}
       - if: ${{ !inputs.dry_run }}
         run: gh release create "${{ steps.v.outputs.tag }}" --target "$GITHUB_SHA" --generate-notes # also creates the tag
         env:
