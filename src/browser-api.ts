@@ -1,16 +1,17 @@
 // Split from index.ts so worker.ts can import it without pulling in createCompiler's
 // `new Worker(new URL("./worker.js", ...))`, which bundlers would follow back into the worker (infinite recursion).
 import { type Binaryen, createApi } from "./core.ts";
+import { importUrl } from "./dynamic-import.js";
 
 // binaryen.js is a 15 MB single-line file that bundlers choke on, so it is never imported by name:
 // it is loaded at runtime from the directory `copy-assets` wrote.
 const binaryen = new Map<string, Promise<Binaryen>>();
 function loadBinaryen(baseUrl?: string | URL): Promise<Binaryen> {
   if (baseUrl === undefined) throw new Error("baseUrl is required in browsers");
-  const url = new URL("binaryen.js", baseUrl).href; // a variable, so bundlers do not try to resolve it
+  const url = new URL("binaryen.js", baseUrl).href;
   let p = binaryen.get(url);
   if (!p) {
-    p = import(/* @vite-ignore */ /* webpackIgnore: true */ url).then((m) => m.default);
+    p = importUrl(url).then((m) => m.default as Binaryen);
     binaryen.set(url, p);
     p.catch(() => binaryen.delete(url)); // allow a retry
   }

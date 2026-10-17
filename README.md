@@ -76,7 +76,7 @@ b. Without a bundler, use the standalone worker (its `baseUrl` defaults to its o
 const compiler = createCompiler({ worker: new Worker("/compiler/worker.js", { type: "module" }) });
 ```
 
-The only asset a bundler resolves is the 60 KB `hook-cleaner.wasm`, through `new URL("./hook-cleaner.wasm", import.meta.url)`; binaryen, and its top-level await, is not in the module graph. Vite build needs `worker.format: "es"` (the worker lazy-loads a chunk, which IIFE workers cannot do). webpack 5 has not been re-tested since binaryen left the graph; its earlier `topLevelAwait` requirement no longer applies.
+The only asset a bundler resolves is the 60 KB `hook-cleaner.wasm`, through `new URL("./hook-cleaner.wasm", import.meta.url)`; binaryen, and its top-level await, is not in the module graph. Vite build needs `worker.format: "es"` (the worker lazy-loads a chunk, which IIFE workers cannot do). webpack 5 (through Next.js) needs no settings; the earlier `topLevelAwait` requirement no longer applies.
 
 Vite dev: keep this package out of dependency pre-bundling, which rewrites `import.meta.url` so the cleaner wasm 404s ("worker error"). Verified on Vite 6 (`vite`, and `vite build` + `vite preview`):
 
@@ -85,6 +85,13 @@ export default { optimizeDeps: { exclude: ["hooks-compiler"] }, worker: { format
 ```
 
 An `esnext` target is not needed. Without the `exclude`, `vite` dev fails with "worker error"; `vite build` works either way.
+
+Next.js: call `createCompiler` from a `"use client"` component (in an effect or handler) and keep the package out of the server bundle. Next also bundles client components for SSR, and in that pass the `node` entry pulls in `@live-codes/clang-wasm`'s `new URL("../assets/", import.meta.url)`, which Turbopack and webpack cannot resolve. Verified on Next 16 (`next dev`/`next build` with Turbopack and with `--webpack`):
+
+```ts
+// next.config.ts
+export default { serverExternalPackages: ["hooks-compiler"] };
+```
 
 ## Low-level API
 
