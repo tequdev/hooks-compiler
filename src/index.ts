@@ -2,7 +2,7 @@ import { check, compile, prefetchToolchain } from "./browser-api.ts";
 import type { Compiler, ToolchainOptions } from "./core.ts";
 import type { WorkerRequest, WorkerResponse } from "./worker.ts";
 
-export type { CompileInput, CompileResult, Compiler, OptLevel, ProgressFn, ToolchainOptions } from "./core.ts";
+export type { CheckInput, CompileInput, CompileResult, Compiler, OptLevel, ProgressFn, ToolchainOptions } from "./core.ts";
 export { VERSIONS } from "./core.ts";
 export { check, compile, prefetchToolchain };
 
@@ -38,7 +38,7 @@ export function createCompiler(opts: ToolchainOptions & { worker?: Worker } = {}
     });
   return {
     compile: async (input) => ((await call({ type: "compile", ...input })) as Extract<WorkerResponse, { result: unknown }>).result,
-    check: async (files, entry) => ((await call({ type: "check", files, entry })) as Extract<WorkerResponse, { lines: unknown }>).lines,
+    check: async (input) => ((await call({ type: "check", ...input })) as Extract<WorkerResponse, { lines: unknown }>).lines,
     prefetch: async () => void (await call({ type: "prefetch" })),
     terminate: () => {
       failAll(new Error("compiler terminated"));

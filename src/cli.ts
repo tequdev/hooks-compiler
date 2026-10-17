@@ -73,7 +73,7 @@ async function checkCmd(args: string[]) {
     options: { I: { type: "string", short: "I", multiple: true } },
   });
   if (!positionals.length) fail(usage);
-  const lines = await check(await readSources(positionals, values.I ?? []), basename(positionals[0]));
+  const lines = await check({ files: await readSources(positionals, values.I ?? []), entry: basename(positionals[0]) });
   if (lines.length) console.log(lines.join("\n"));
   process.exitCode = lines.some((l) => l.includes("error:")) ? 1 : 0;
 }

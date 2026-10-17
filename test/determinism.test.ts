@@ -31,7 +31,7 @@ test("same source compiles to identical, valid MVP bytes", async (t) => {
 });
 
 test("check() reports compiler errors", async () => {
-  const lines = await check({ "hook.c": "int hook(int r){ return undeclared(r); }" });
+  const lines = await check({ files: { "hook.c": "int hook(int r){ return undeclared(r); }" } });
   assert.ok(
     lines.some((l) => l.includes("error:")),
     lines.join("\n"),
@@ -57,7 +57,7 @@ test("VERSIONS match the pinned dependencies", async () => {
 test("createCompiler() matches compile()", async () => {
   const c = createCompiler();
   assert.equal((await c.compile({ files })).sha256, (await compile({ files })).sha256);
-  assert.ok((await c.check({ "hook.c": "int x = ;" })).some((l) => l.includes("error:")));
+  assert.ok((await c.check({ files: { "hook.c": "int x = ;" } })).some((l) => l.includes("error:")));
   await c.prefetch();
   c.terminate();
 });

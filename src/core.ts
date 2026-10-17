@@ -19,12 +19,14 @@ export type CompileInput = {
   wat?: boolean; // also emit the final module as WAT, default false
 } & ToolchainOptions;
 
+export type CheckInput = { files: Record<string, string>; entry?: string } & ToolchainOptions;
+
 export const VERSIONS = { clangWasm: "0.3.0", binaryen: "132.0.0" } as const;
 
 /** What `createCompiler` returns: the same pipeline behind promises, optionally in a worker. */
 export type Compiler = {
   compile(input: Omit<CompileInput, keyof ToolchainOptions>): Promise<CompileResult>;
-  check(files: Record<string, string>, entry?: string): Promise<string[]>;
+  check(input: Omit<CheckInput, keyof ToolchainOptions>): Promise<string[]>;
   prefetch(): Promise<void>;
   terminate(): void;
 };
@@ -153,7 +155,7 @@ export function createApi(readCleaner: () => Promise<BufferSource>) {
   const prefetchToolchain = (opts?: ToolchainOptions): Promise<void> => getToolchain(opts).then(() => {});
 
   /** Syntax-only pass for editor diagnostics. Returns clang's output lines (`/src/file:line:col: error: ...`). */
-  async function check(files: Record<string, string>, entry = "hook.c", opts?: ToolchainOptions): Promise<string[]> {
+  async function check({ files, entry = "hook.c", ...opts }: CheckInput): Promise<string[]> {
     const { tc, clang } = await getToolchain(opts);
     return tc.lock(async () => {
       for (const [name, text] of Object.entries(files)) put(tc, `src/${name}`, text);

@@ -34,7 +34,7 @@ import { createCompiler } from "hooks-compiler";
 
 const compiler = createCompiler({ baseUrl: "/compiler/clang/", onProgress: (f) => console.log(f) });
 const r = await compiler.compile({ files: { "hook.c": source }, opt: "-Oz", wat: true });
-const lines = await compiler.check({ "hook.c": source }); // clang -fsyntax-only diagnostics
+const lines = await compiler.check({ files: { "hook.c": source } }); // clang -fsyntax-only diagnostics
 await compiler.prefetch(); // download the toolchain ahead of the first compile
 compiler.terminate();
 ```
@@ -96,7 +96,7 @@ The package's own `new Worker(new URL("./worker.js", import.meta.url))` is the b
 import { compile, check, prefetchToolchain, VERSIONS } from "hooks-compiler";
 
 await compile({ files, entry, opt, wat, baseUrl, onProgress });
-await check(files, entry, { baseUrl, onProgress });
+await check({ files, entry, baseUrl, onProgress });
 await prefetchToolchain({ baseUrl, onProgress });
 ```
 
