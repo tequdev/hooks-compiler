@@ -15,7 +15,6 @@ export function instantiateReactor(module: WebAssembly.Module): Reactor {
   const dec = new TextDecoder();
   let out = "";
   let mem!: WebAssembly.Memory;
-  const bad = () => EBADF;
   const wasi = {
     fd_write(_fd: number, iovs: number, iovsLen: number, nwritten: number) {
       const dv = new DataView(mem.buffer);
@@ -29,18 +28,7 @@ export function instantiateReactor(module: WebAssembly.Module): Reactor {
       dv.setUint32(nwritten, total, true);
       return 0;
     },
-    environ_sizes_get(count: number, size: number) {
-      const dv = new DataView(mem.buffer);
-      dv.setUint32(count, 0, true);
-      dv.setUint32(size, 0, true);
-      return 0;
-    },
-    environ_get: () => 0,
-    fd_prestat_get: bad,
-    fd_fdstat_get: bad,
-    fd_close: bad,
-    fd_seek: bad,
-    fd_prestat_dir_name: bad,
+    fd_seek: () => EBADF,
     proc_exit(code: number): never {
       throw new Error(`proc_exit(${code})`);
     },

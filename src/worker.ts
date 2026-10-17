@@ -34,7 +34,7 @@ worker.onmessage = async (ev) => {
     } else if (req.type === "check") {
       worker.postMessage({ id, lines: await check({ files: req.files, entry: req.entry, baseUrl }) });
     } else {
-      const result = await compile({ files: req.files, entry: req.entry, opt: req.opt, wat: req.wat, baseUrl, onProgress });
+      const result = await compile({ files: req.files, entry: req.entry, opt: req.opt, wat: req.wat, baseUrl });
       worker.postMessage({ id, result }, [result.wasm.buffer as ArrayBuffer]);
     }
   } catch (e) {
