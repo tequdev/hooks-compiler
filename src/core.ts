@@ -8,7 +8,7 @@ export type OptLevel = "-O0" | "-O1" | "-O2" | "-O3" | "-Os" | "-Oz";
 export type ProgressFn = (fraction: number) => void;
 
 export type ToolchainOptions = {
-  baseUrl?: string | URL; // directory holding the assets from `clang-wasm-copy-assets`; required in browsers, Node reads node_modules
+  baseUrl?: string | URL; // directory written by `hooks-compiler copy-assets` (ends with "/"); required in browsers, Node reads node_modules
   onProgress?: ProgressFn; // toolchain download progress
 };
 
@@ -75,7 +75,14 @@ function getToolchain({ baseUrl, onProgress }: ToolchainOptions = {}): Promise<T
   let p = toolchains.get(key);
   if (!p) {
     p = (async () => {
-      const tc = await createToolchain({ baseUrl, onProgress });
+      const tc = await createToolchain({ baseUrl: baseUrl === undefined ? undefined : new URL("clang/", baseUrl), onProgress }).catch(
+        (cause) => {
+          throw new Error(
+            `toolchain not found under ${baseUrl}: point baseUrl at the directory written by \`hooks-compiler copy-assets\``,
+            { cause },
+          );
+        },
+      );
       const { runtime } = tc;
       const [clang, lld] = await Promise.all([runtime.getModule(runtime.assetUrls.clang), runtime.getModule(runtime.assetUrls.lld)]);
       runtime.memfs.addDirectory("build");
@@ -109,12 +116,7 @@ function put(tc: Toolchain, path: string, text: string) {
   else tc.addFile(path, text);
 }
 
-type Binaryen = typeof import("binaryen").default;
-
-// Imported lazily: binaryen.js has a top-level await, and Chromium drops messages posted to a
-// module worker while its top-level evaluation is still pending.
-let binaryenLoad: Promise<Binaryen> | undefined;
-const loadBinaryen = () => (binaryenLoad ??= import("binaryen").then((m) => m.default));
+export type Binaryen = typeof import("binaryen").default;
 
 /** Reads `bytes` restricted to the WebAssembly MVP feature set (ignoring any target_features section) and validates it. */
 function withMvpModule<T>(binaryen: Binaryen, bytes: Uint8Array, invalid: string, fn: (m: ReturnType<Binaryen["readBinary"]>) => T): T {
@@ -136,7 +138,12 @@ function runCleaner(mod: WebAssembly.Module, input: Uint8Array): Uint8Array {
   const lenPtr = ex.malloc(4) as number;
   new Uint8Array(ex.memory.buffer).set(input, inp);
   new DataView(ex.memory.buffer).setInt32(lenPtr, input.length, true);
-  const rc = ex.cleaner(inp, out, lenPtr) as number;
+  let rc: number;
+  try {
+    rc = ex.cleaner(inp, out, lenPtr) as number;
+  } catch (e) {
+    throw new Error(`${e instanceof Error ? e.message : e}\n${r.output()}`, { cause: e }); // proc_exit throws; keep the cleaner's stderr
+  }
   if (rc !== 0) throw new Error(`hook-cleaner failed (code ${rc})\n${r.output()}`);
   const len = new DataView(ex.memory.buffer).getInt32(lenPtr, true);
   return new Uint8Array(ex.memory.buffer, out, len).slice();
@@ -146,8 +153,18 @@ function hex(buf: ArrayBuffer) {
   return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-/** Builds the pipeline; `readCleaner` supplies the bytes of hook-cleaner.wasm (compiled once, then cached). */
-export function createApi(readCleaner: () => Promise<BufferSource>) {
+/**
+ * Builds the pipeline. `readCleaner` supplies the bytes of hook-cleaner.wasm (compiled once, then cached).
+ * `loadBinaryen` is called per compile, not at startup: binaryen.js has a top-level await, and Chromium
+ * drops messages posted to a module worker while its top-level evaluation is still pending.
+ */
+export function createApi({
+  readCleaner,
+  loadBinaryen,
+}: {
+  readCleaner: () => Promise<BufferSource>;
+  loadBinaryen: (baseUrl?: string | URL) => Promise<Binaryen>;
+}) {
   let cleaner: Promise<WebAssembly.Module> | undefined;
   const cleanerModule = () => (cleaner ??= readCleaner().then((bytes) => WebAssembly.compile(bytes)));
 
@@ -185,7 +202,7 @@ export function createApi(readCleaner: () => Promise<BufferSource>) {
 
     // Before the cleaner: it strips the `memory` export, and wasm-opt's DCE would then drop the memory/data segment.
     logs.push("$ wasm-opt -Oz --mvp-features");
-    const binaryen = await loadBinaryen();
+    const binaryen = await loadBinaryen(input.baseUrl);
     const optimized = withMvpModule(binaryen, raw, "hook.raw.wasm uses instructions outside the WebAssembly MVP (see console)", (m) => {
       binaryen.setOptimizeLevel(2);
       binaryen.setShrinkLevel(2);

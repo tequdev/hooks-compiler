@@ -22,10 +22,10 @@ const worker = self as unknown as {
 worker.onmessage = async (ev) => {
   const req = ev.data;
   const { id } = req;
-  // default suits the standalone bundle, where clang/ sits beside worker.js. Resolved against the
+  // default suits the standalone bundle, where clang/ and binaryen.js sit beside worker.js. Resolved against the
   // worker's own URL rather than import.meta.url: bundlers treat `new URL(string, import.meta.url)` as an
-  // asset reference and fail to resolve the (non-existent) ./clang/ directory.
-  const baseUrl = req.baseUrl ?? new URL("./clang/", self.location.href).href;
+  // asset reference and fail to resolve the (non-existent) directory.
+  const baseUrl = req.baseUrl ?? new URL("./", self.location.href).href;
   const onProgress = (progress: number) => worker.postMessage({ id, progress });
   try {
     await prefetchToolchain({ baseUrl, onProgress });

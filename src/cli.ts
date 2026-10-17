@@ -8,7 +8,7 @@ import { check, compile, type OptLevel } from "./index.node.ts";
 const usage = `usage:
   hooks-compiler build <entry.c> [more .c/.h files...] [-I <dir>]... [-o out.wasm] [-O0|-O1|-O2|-O3|-Os|-Oz] [--wat] [--json]
   hooks-compiler check <entry.c> [more files...] [-I <dir>]...
-  hooks-compiler copy-assets [directory]   (default ./compiler)
+  hooks-compiler copy-assets [directory]   (default ./compiler; pass its served URL as baseUrl)
 
 -I <dir>  add every file under dir (keyed by its path relative to dir), repeatable; first source for a name wins
           (positional files, then -I dirs in order)`;
@@ -94,6 +94,7 @@ async function copyAssets(args: string[]) {
     await cp(fileURLToPath(src), dest, { recursive: true });
     console.log(dest);
   }
+  console.error("serve this directory and pass its URL (with a trailing slash) as baseUrl");
 }
 
 const [cmd, ...rest] = process.argv.slice(2);

@@ -32,7 +32,7 @@ Browser (runs in a Web Worker):
 ```ts
 import { createCompiler } from "hooks-compiler";
 
-const compiler = createCompiler({ baseUrl: "/compiler/clang/", onProgress: (f) => console.log(f) });
+const compiler = createCompiler({ baseUrl: "/compiler/", onProgress: (f) => console.log(f) });
 const r = await compiler.compile({ files: { "hook.c": source }, opt: "-Oz", wat: true });
 const lines = await compiler.check({ files: { "hook.c": source } }); // clang -fsyntax-only diagnostics
 await compiler.prefetch(); // download the toolchain ahead of the first compile
@@ -62,33 +62,29 @@ npx hooks-compiler copy-assets public/compiler
 
 This creates `public/compiler/` with `worker.js`, `browser.js`, `hook-cleaner.wasm`, `binaryen.js` and `clang/` (the toolchain). Then either:
 
-a. With a bundler, keep the bundled worker and point it at the toolchain:
+a. With a bundler, keep the bundled worker and point it at that directory:
 
 ```ts
-const compiler = createCompiler({ baseUrl: "/compiler/clang/" });
+const compiler = createCompiler({ baseUrl: "/compiler/" });
 ```
 
-A relative `baseUrl` is resolved against the page, not the worker script.
+`baseUrl` is the directory `copy-assets` wrote, with a trailing slash. The clang assets are read from `<baseUrl>clang/` and binaryen from `<baseUrl>binaryen.js`, loaded at runtime so the bundler never sees its 15 MB file. A relative `baseUrl` is resolved against the page, not the worker script.
 
-b. Without a bundler, use the standalone worker (its `baseUrl` defaults to `./clang/` beside itself):
+b. Without a bundler, use the standalone worker (its `baseUrl` defaults to its own directory):
 
 ```ts
 const compiler = createCompiler({ worker: new Worker("/compiler/worker.js", { type: "module" }) });
 ```
 
-webpack: `binaryen` has a top-level await, so enable it; nothing else is needed.
+The only asset a bundler resolves is the 60 KB `hook-cleaner.wasm`, through `new URL("./hook-cleaner.wasm", import.meta.url)`; binaryen, and its top-level await, is not in the module graph. Vite build needs `worker.format: "es"` (the worker lazy-loads a chunk, which IIFE workers cannot do). webpack 5 has not been re-tested since binaryen left the graph; its earlier `topLevelAwait` requirement no longer applies.
 
-```js
-config.experiments = { ...config.experiments, topLevelAwait: true };
-```
-
-Vite: keep this package out of dependency pre-bundling (it rewrites `import.meta.url`, so the cleaner wasm 404s in dev) and allow top-level await:
+Vite dev: keep this package out of dependency pre-bundling, which rewrites `import.meta.url` so the cleaner wasm 404s ("worker error"). Verified on Vite 6 (`vite`, and `vite build` + `vite preview`):
 
 ```ts
-optimizeDeps: { exclude: ["hooks-compiler"], esbuildOptions: { target: "esnext" } }
+export default { optimizeDeps: { exclude: ["hooks-compiler"] }, worker: { format: "es" } };
 ```
 
-The package's own `new Worker(new URL("./worker.js", import.meta.url))` is the bundler-standard pattern, but it has not been verified under Vite's dependency optimizer. If it misbehaves, pass your own `worker` (option b).
+An `esnext` target is not needed. Without the `exclude`, `vite` dev fails with "worker error"; `vite build` works either way.
 
 ## Low-level API
 
@@ -100,7 +96,7 @@ await check({ files, entry, baseUrl, onProgress });
 await prefetchToolchain({ baseUrl, onProgress });
 ```
 
-These run on the calling thread (`hooks-compiler` resolves to the Node build under Node, the browser build elsewhere). `baseUrl` is required in browsers. `onProgress(fraction)` is 0..1; until `@live-codes/clang-wasm` fixes its progress callback (registered after the load), only `1` arrives, so show an indeterminate state.
+These run on the calling thread (`hooks-compiler` resolves to the Node build under Node, the browser build elsewhere). `baseUrl` (the `copy-assets` directory) is required in browsers. `onProgress(fraction)` is 0..1; until `@live-codes/clang-wasm` fixes its progress callback (registered after the load), only `1` arrives, so show an indeterminate state.
 
 `VERSIONS` is `{ clangWasm, binaryen }`, the pinned dependency versions this release is built on (clang 22 comes from `@live-codes/clang-wasm`).
 
@@ -142,7 +138,7 @@ Not part of the pipeline. Validate the output with the xahaud `hook_validate` RP
 
 ```sh
 pnpm install     # also builds src/hook-cleaner.wasm from tools/hook-cleaner (prepare)
-pnpm dev         # demo page: compiles 3 times and compares hashes (serves the toolchain from node_modules)
+pnpm dev         # demo page: compiles 3 times and compares hashes (serves /compiler/ from node_modules)
 pnpm build       # tsc → dist/, standalone worker bundle → dist/standalone/
 pnpm lint        # biome check (pnpm format to fix formatting)
 pnpm test        # unit tests, including the CLI
