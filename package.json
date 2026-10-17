@@ -1,6 +1,6 @@
 {
   "name": "hooks-compiler",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Deterministic Xahau C Hook compiler: clang, lld, wasm-opt and hook-cleaner, all running as WebAssembly in the browser or Node",
   "license": "MIT",
   "author": "tequ",
