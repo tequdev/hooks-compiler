@@ -1,0 +1,6 @@
+{
+  "$schema": "https://biomejs.dev/schemas/latest/schema.json",
+  "files": { "includes": ["**", "!dist", "!node_modules", "!public", "!test-results", "!playwright-report", "!pnpm-lock.yaml", "!tools"] },
+  "formatter": { "indentStyle": "space", "indentWidth": 2, "lineWidth": 140 },
+  "assist": { "actions": { "source": { "organizeImports": "on" } } }
+}

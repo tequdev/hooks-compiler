@@ -30,6 +30,7 @@ jobs:
       - run: git fetch --tags && ! git rev-parse -q --verify "refs/tags/${{ steps.v.outputs.tag }}" # version must be unreleased
       - run: pnpm install --frozen-lockfile
       - run: pnpm test
+      - run: pnpm build && pnpm test:dist
       # Skipped when the version is already on npm, so a run that failed after publishing can be re-run.
       - run: npm view "hooks-compiler@${TAG#v}" version >/dev/null 2>&1 && echo "already published" || npm publish --provenance --access public ${{ inputs.dry_run && '--dry-run' || '' }} # prepack runs pnpm build
         env:

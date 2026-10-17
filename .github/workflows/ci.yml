@@ -15,8 +15,16 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
-      - run: pnpm install --frozen-lockfile # prepare: builds hook-cleaner.wasm, copies toolchain assets
+      - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
+      - run: pnpm lint
       - run: pnpm test
       - run: pnpm build
-      - run: pnpm build:worker
+      - run: pnpm test:dist
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm test:e2e
+      # engines allows Node >= 20.12: run the built CLI there (last, pnpm 11 itself needs Node 22.13)
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20.12
+      - run: node --version && node scripts/smoke-dist.mjs

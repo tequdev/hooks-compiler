@@ -10,7 +10,6 @@ declare module "@live-codes/clang-wasm/toolchain" {
       memfs: Memfs;
       getModule(url: string): Promise<WebAssembly.Module>;
       assetUrls: { clang: string; lld: string };
-      compilerConfig: { compilerRuntimeLibDir: string };
       run(module: WebAssembly.Module, ...args: unknown[]): Promise<unknown>;
     };
     addFile(path: string, contents: string | Uint8Array): void;

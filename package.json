@@ -4,33 +4,68 @@
   "description": "Deterministic Xahau C Hook compiler: clang, lld, wasm-opt and hook-cleaner, all running as WebAssembly in the browser or Node",
   "license": "MIT",
   "author": "tequ",
-  "repository": { "type": "git", "url": "git+https://github.com/tequdev/hooks-compiler.git" },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tequdev/hooks-compiler.git"
+  },
   "homepage": "https://github.com/tequdev/hooks-compiler#readme",
-  "bugs": { "url": "https://github.com/tequdev/hooks-compiler/issues" },
-  "keywords": ["xahau", "hooks", "webassembly", "wasm", "clang", "compiler"],
-  "engines": { "node": ">=20.16" },
+  "bugs": {
+    "url": "https://github.com/tequdev/hooks-compiler/issues"
+  },
+  "keywords": [
+    "xahau",
+    "hooks",
+    "webassembly",
+    "wasm",
+    "clang",
+    "compiler"
+  ],
+  "engines": {
+    "node": ">=20.12"
+  },
   "type": "module",
   "exports": {
-    ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
-    "./worker": { "types": "./dist/worker.d.ts", "default": "./dist/worker.js" }
+    ".": {
+      "node": {
+        "types": "./dist/index.node.d.ts",
+        "default": "./dist/index.node.js"
+      },
+      "default": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    },
+    "./worker": {
+      "types": "./dist/worker.d.ts",
+      "default": "./dist/worker.js"
+    }
   },
-  "bin": { "hooks-compiler": "./dist/cli.js", "hooks-compiler-copy-assets": "./dist/copy-assets.js" },
-  "files": ["dist", "dist-worker"],
+  "bin": {
+    "hooks-compiler": "./dist/cli.js"
+  },
+  "files": [
+    "dist"
+  ],
   "scripts": {
-    "prepare": "node --experimental-strip-types scripts/build-cleaner.ts && clang-wasm-copy-assets public/clang",
-    "build": "tsc -p tsconfig.build.json && cp src/hook-cleaner.wasm dist/",
-    "build:worker": "vite build --config vite.worker.config.ts",
+    "update-cleaner": "node --experimental-strip-types scripts/update-cleaner.ts",
+    "build": "rm -rf dist && tsc -p tsconfig.build.json && cp src/hook-cleaner.wasm src/dynamic-import.js dist/ && vite build --config vite.worker.config.ts",
     "dev": "vite",
     "typecheck": "tsc --noEmit",
+    "lint": "biome check .",
+    "format": "biome format --write .",
     "test": "node --experimental-strip-types --test test/*.test.ts",
-    "prepack": "pnpm build && pnpm build:worker"
+    "test:dist": "node scripts/smoke-dist.mjs",
+    "test:e2e": "playwright test",
+    "prepack": "pnpm build"
   },
   "dependencies": {
     "@live-codes/clang-wasm": "0.3.0",
     "binaryen": "132.0.0"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.5.15",
     "@digital-go-jp/design-tokens": "^2.0.1",
+    "@playwright/test": "^1.64.1",
     "@types/node": "^22.20.5",
     "typescript": "^5.7.0",
     "vite": "^6.0.0"
