@@ -1,0 +1,41 @@
+{
+  "xahaud": { "commit": "3dc41b2a5951855f7c5c88c9efed0299e7a843ec" },
+  "templates": [
+    {
+      "name": "starter",
+      "gist": "1f8109c80f504e6326db2735df2f0ad6",
+      "revision": "d7d7feeb0c215afe209fee91a5b90f1f738945c8",
+      "files": ["starter.c"]
+    },
+    {
+      "name": "firewall",
+      "gist": "1cc30f39c8a0b9c55b88c312669ca45e",
+      "revision": "6e32f234d92f2a984dcb8ef7ae08059315d2b555",
+      "files": ["firewall.c"]
+    },
+    {
+      "name": "blacklist",
+      "gist": "1cc30f39c8a0b9c55b88c312669ca45e",
+      "revision": "6e32f234d92f2a984dcb8ef7ae08059315d2b555",
+      "files": ["blacklist.c"]
+    },
+    {
+      "name": "notary",
+      "gist": "87b6f5a8c2f5038fb0f20b8b510efa10",
+      "revision": "d17a8debcb5350bbc7e4e3f5a4a3ca49da13ca97",
+      "files": ["notary.c"]
+    },
+    {
+      "name": "carbon",
+      "gist": "953662b22d065449f8ab6f69bc2afe41",
+      "revision": "b40b00ddb6bde4f36962e7388be0c1030632c831",
+      "files": ["carbon.c"]
+    },
+    {
+      "name": "peggy",
+      "gist": "049784a83fa068faf7912f663f7b6471",
+      "revision": "5c8cc951a51ef4cba4f8b10342ca7adf981136f9",
+      "files": ["peggy.c"]
+    }
+  ]
+}
