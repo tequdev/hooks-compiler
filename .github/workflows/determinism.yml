@@ -27,4 +27,4 @@ jobs:
         if: failure()
         with:
           name: wasm-${{ matrix.os }}
-          path: determinism-out
+          path: test-results/determinism

@@ -141,7 +141,7 @@ The toolchain's in-memory filesystem has no delete, so within one process or wor
 
 ### Determinism check
 
-`fixtures/hooks` holds real Xahau hooks (the xrpl-hooks-ide templates), compiled against the xahaud headers in `fixtures/include`. `pnpm test:determinism` builds each one twice with the built CLI and compares the SHA-256 with `fixtures/hashes.json`. The `Determinism` workflow runs it on x64 Linux, arm64 Linux, arm64 macOS and x64 Windows. An intentional toolchain change (a bump of clang-wasm, binaryen or hook-cleaner) needs `node scripts/determinism.mjs --update`, and the new hashes are committed with the bump. See `fixtures/README.md` for the sources.
+`test/fixtures/hooks` holds real Xahau hooks (the xrpl-hooks-ide templates), compiled against the xahaud headers in `test/fixtures/include`. `pnpm test:determinism` builds each one twice with the built CLI and compares the SHA-256 with `test/fixtures/hashes.json`. The `Determinism` workflow runs it on x64 Linux, arm64 Linux, arm64 macOS and x64 Windows. An intentional toolchain change (a bump of clang-wasm, binaryen or hook-cleaner) needs `node scripts/determinism.mjs --update`, and the new hashes are committed with the bump. See `test/fixtures/README.md` for the sources.
 
 ## Guard check
 
