@@ -3,3 +3,4 @@ dist
 aube-lock.yaml
 test-results
 playwright-report
+determinism-out

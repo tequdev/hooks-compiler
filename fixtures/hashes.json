@@ -1,0 +1,8 @@
+{
+  "blacklist": "52487a89c2baf6575087914df51b47f449bab60b54a88ae397694f8accb45aee",
+  "carbon": "bfb071adca11865606b68b088fc03921e36f58ed036904fb4eaf6393ce84f49b",
+  "firewall": "e1c6a699b82d1fd1b9920c2693ecf69cceb67dca1ec92c23a50f461b74e9deaa",
+  "notary": "e21f7bec85a0e731ade211f3bd62b02ce74b4560dce58b02a2ab180b07174956",
+  "peggy": "7900a184632cea1ca5c9f8c240bbca91185ccec5b7c1baf9dff65a5bc31e40cd",
+  "starter": "a86a8ac37e77ccfbad7b33b67ea3e64c2025a31d8d7ccece08e832d7c7f96fca"
+}

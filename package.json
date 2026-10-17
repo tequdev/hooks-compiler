@@ -55,6 +55,7 @@
     "format": "biome format --write .",
     "test": "node --experimental-strip-types --test test/*.test.ts",
     "test:dist": "node scripts/smoke-dist.mjs",
+    "test:determinism": "node scripts/determinism.mjs",
     "test:e2e": "playwright test",
     "prepack": "pnpm build"
   },
