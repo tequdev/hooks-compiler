@@ -102,7 +102,7 @@ await prefetchToolchain({ baseUrl, onProgress });
 
 These run on the calling thread (`hooks-compiler` resolves to the Node build under Node, the browser build elsewhere). `baseUrl` is required in browsers. `onProgress(fraction)` is 0..1; until `@live-codes/clang-wasm` fixes its progress callback (registered after the load), only `1` arrives, so show an indeterminate state.
 
-`VERSIONS` is `{ clangWasm, clang, binaryen }`, the toolchain versions this release is built on.
+`VERSIONS` is `{ clangWasm, binaryen }`, the pinned dependency versions this release is built on (clang 22 comes from `@live-codes/clang-wasm`).
 
 Worker protocol (`hooks-compiler/worker`, also the standalone `worker.js`): post a `WorkerRequest` with a unique `id`, receive `WorkerResponse` messages with the same `id`.
 

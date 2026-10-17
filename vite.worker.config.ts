@@ -18,9 +18,7 @@ export default defineConfig({
   plugins: [binaryenExternal],
   build: {
     outDir: "dist/standalone",
-    emptyOutDir: true,
     target: "esnext",
-    assetsInlineLimit: 0,
     rollupOptions: {
       input: "src/worker.ts",
       output: { format: "es", entryFileNames: "worker.js", assetFileNames: "[name][extname]", chunkFileNames: "[name].js" },

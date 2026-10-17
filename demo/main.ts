@@ -11,7 +11,7 @@ source.value = hello;
 
 const compiler = createCompiler({
   worker: new Worker(new URL("../src/worker.ts", import.meta.url), { type: "module" }),
-  baseUrl: new URL("/", location.href).href,
+  baseUrl: "/",
 });
 const build = (src: string) => compiler.compile({ files: { "hook.c": src, "hookapi.h": header }, wat: true });
 

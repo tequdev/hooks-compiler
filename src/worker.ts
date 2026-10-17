@@ -32,9 +32,9 @@ worker.onmessage = async (ev) => {
     if (req.type === "prefetch") {
       worker.postMessage({ id, ok: true });
     } else if (req.type === "check") {
-      worker.postMessage({ id, lines: await check(req.files, req.entry ?? "hook.c", { baseUrl }) });
+      worker.postMessage({ id, lines: await check(req.files, req.entry, { baseUrl }) });
     } else {
-      const result = await compile({ files: req.files, entry: req.entry ?? "hook.c", opt: req.opt, wat: req.wat, baseUrl, onProgress });
+      const result = await compile({ files: req.files, entry: req.entry, opt: req.opt, wat: req.wat, baseUrl, onProgress });
       worker.postMessage({ id, result }, [result.wasm.buffer as ArrayBuffer]);
     }
   } catch (e) {

@@ -19,7 +19,7 @@ export type CompileInput = {
   wat?: boolean; // also emit the final module as WAT, default false
 } & ToolchainOptions;
 
-export const VERSIONS = { clangWasm: "0.3.0", clang: "22.1.8", binaryen: "132.0.0" } as const;
+export const VERSIONS = { clangWasm: "0.3.0", binaryen: "132.0.0" } as const;
 
 /** What `createCompiler` returns: the same pipeline behind promises, optionally in a worker. */
 export type Compiler = {
@@ -150,9 +150,7 @@ export function createApi(readCleaner: () => Promise<BufferSource>) {
   const cleanerModule = () => (cleaner ??= readCleaner().then((bytes) => WebAssembly.compile(bytes)));
 
   /** Fetches the toolchain once, reporting progress. */
-  async function prefetchToolchain(opts?: ToolchainOptions): Promise<void> {
-    await getToolchain(opts);
-  }
+  const prefetchToolchain = (opts?: ToolchainOptions): Promise<void> => getToolchain(opts).then(() => {});
 
   /** Syntax-only pass for editor diagnostics. Returns clang's output lines (`/src/file:line:col: error: ...`). */
   async function check(files: Record<string, string>, entry = "hook.c", opts?: ToolchainOptions): Promise<string[]> {
