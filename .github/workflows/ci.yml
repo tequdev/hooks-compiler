@@ -23,21 +23,7 @@ jobs:
       - run: pnpm test:dist
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm test:e2e
-  # engines allows Node >= 20.12, but the unit tests need 22.6 (strip-types) and pnpm 11 needs 22.13:
-  # install and build on 22, then run the built CLI on 20
-  node20:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 11
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm build
+      # engines allows Node >= 20.12: run the built CLI there (last, pnpm 11 itself needs Node 22.13)
       - uses: actions/setup-node@v4
         with:
           node-version: 20.12
