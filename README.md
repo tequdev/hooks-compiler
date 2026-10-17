@@ -150,11 +150,3 @@ pnpm test:e2e    # Playwright against the demo (needs: pnpm exec playwright inst
 ```
 
 `tools/VENDOR.md` documents the vendored hook-cleaner source.
-
-## Migrating from 0.1
-
-- `hooks-compiler-copy-assets <dir>` is now `hooks-compiler copy-assets <dir>`. It also copies the standalone worker, `hook-cleaner.wasm` and `binaryen.js`, and puts the toolchain in `<dir>/clang/`.
-- `dist-worker/` is gone. Use `copy-assets`; the standalone worker lives in `dist/standalone/`.
-- `CompileResult.wat` is now opt-in: pass `wat: true`.
-- The CLI is `hooks-compiler build <entry.c>` (was `hooks-compiler <entry.c>`), and `hooks-compiler check` is new.
-- Example headers moved to `examples/include/`.
