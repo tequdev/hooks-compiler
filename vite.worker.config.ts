@@ -1,5 +1,6 @@
-// Builds src/worker.ts as a standalone ES-module worker bundle (dist-worker/),
-// with the toolchain assets (public/clang, copied by `pnpm install`) in dist-worker/clang/ beside it, so any app can `new Worker("/compiler/worker.js", { type: "module" })`.
+// Builds src/worker.ts as a standalone ES-module worker bundle (dist-worker/, published as-is), so any app can
+// copy it and `new Worker("/compiler/worker.js", { type: "module" })`. The toolchain assets are not bundled
+// (28 MB, already in @live-codes/clang-wasm): hosts run `hooks-compiler-copy-assets <dir>/clang` beside it.
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { defineConfig } from "vite";
@@ -17,6 +18,7 @@ const binaryenExternal = {
 
 export default defineConfig({
   base: "./", // asset URLs relative to worker.js, so the folder can live anywhere (e.g. /compiler/)
+  publicDir: false, // do not copy public/clang into the bundle
   plugins: [binaryenExternal],
   build: {
     outDir: "dist-worker",

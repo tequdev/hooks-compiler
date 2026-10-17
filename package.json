@@ -8,14 +8,14 @@
   "homepage": "https://github.com/tequdev/hooks-compiler#readme",
   "bugs": { "url": "https://github.com/tequdev/hooks-compiler/issues" },
   "keywords": ["xahau", "hooks", "webassembly", "wasm", "clang", "compiler"],
-  "engines": { "node": ">=20" },
+  "engines": { "node": ">=20.16" },
   "type": "module",
   "exports": {
     ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
     "./worker": { "types": "./dist/worker.d.ts", "default": "./dist/worker.js" }
   },
-  "bin": { "hooks-compiler": "./dist/cli.js" },
-  "files": ["dist"],
+  "bin": { "hooks-compiler": "./dist/cli.js", "hooks-compiler-copy-assets": "./dist/copy-assets.js" },
+  "files": ["dist", "dist-worker"],
   "scripts": {
     "prepare": "node --experimental-strip-types scripts/build-cleaner.ts && clang-wasm-copy-assets public/clang",
     "build": "tsc -p tsconfig.build.json && cp src/hook-cleaner.wasm dist/",
@@ -23,7 +23,7 @@
     "dev": "vite",
     "typecheck": "tsc --noEmit",
     "test": "node --experimental-strip-types --test test/*.test.ts",
-    "prepack": "pnpm build"
+    "prepack": "pnpm build && pnpm build:worker"
   },
   "dependencies": {
     "@live-codes/clang-wasm": "0.3.0",

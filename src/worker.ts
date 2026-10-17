@@ -12,8 +12,10 @@ export type WorkerResponse =
 const worker = self as unknown as { onmessage: (ev: MessageEvent<WorkerRequest>) => void; postMessage(m: WorkerResponse, transfer?: Transferable[]): void };
 
 worker.onmessage = async (ev) => {
-  // default suits the standalone bundle, where clang/ sits beside worker.js
-  const { id, type, files, entry = "hook.c", opt, baseUrl = new URL("./clang/", import.meta.url).href } = ev.data;
+  // default suits the standalone bundle, where clang/ sits beside worker.js. Resolved against the
+  // worker's own URL rather than import.meta.url: bundlers treat `new URL(string, import.meta.url)` as an
+  // asset reference and fail to resolve the (non-existent) ./clang/ directory.
+  const { id, type, files, entry = "hook.c", opt, baseUrl = new URL("./clang/", self.location.href).href } = ev.data;
   const onProgress = (progress: number) => worker.postMessage({ id, progress });
   try {
     await prefetchToolchain({ baseUrl, onProgress });
