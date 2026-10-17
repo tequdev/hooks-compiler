@@ -1,13 +1,12 @@
 import { createReadStream, statSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite";
 
 // The demo serves the toolchain straight from node_modules at the layout `copy-assets` writes:
 // /compiler/clang/* and /compiler/binaryen.js (the worker and cleaner come from the dev server).
 const require = createRequire(import.meta.url);
-const standalone = join(dirname(fileURLToPath(import.meta.url)), "dist/standalone"); // from `pnpm build`, for the standalone-worker e2e
+const standalone = join(import.meta.dirname, "dist/standalone"); // from `pnpm build`, for the standalone-worker e2e
 const clangAssets = join(dirname(require.resolve("@live-codes/clang-wasm")), "../assets");
 
 export default defineConfig({

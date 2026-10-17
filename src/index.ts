@@ -12,7 +12,7 @@ type Pending = { resolve(m: WorkerResponse): void; reject(e: Error): void; onPro
 export function createCompiler(opts: ToolchainOptions & { worker?: Worker } = {}): Compiler {
   const worker = opts.worker ?? new Worker(new URL("./worker.js", import.meta.url), { type: "module" });
   // resolved against the page here: inside the worker a relative URL would resolve against the worker script
-  const baseUrl = opts.baseUrl === undefined ? undefined : new URL(String(opts.baseUrl), location.href).href.replace(/([^/])$/, "$1/");
+  const baseUrl = opts.baseUrl === undefined ? undefined : new URL(opts.baseUrl, location.href).href.replace(/([^/])$/, "$1/");
   const pending = new Map<number, Pending>();
   let nextId = 0;
   let dead: Error | undefined; // once the worker failed or was terminated, calls would hang forever

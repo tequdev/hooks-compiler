@@ -10,6 +10,7 @@ import { check, compile, createCompiler, VERSIONS } from "../src/index.node.ts";
 import { createCompiler as createBrowserCompiler } from "../src/index.ts";
 
 const run = promisify(execFile);
+const cli = ["--experimental-strip-types", "src/cli.ts"];
 const files = {
   "hook.c": await readFile("examples/hello.c", "utf8"),
   "hookapi.h": await readFile("examples/include/hookapi.h", "utf8"),
@@ -74,10 +75,10 @@ test("createCompiler() matches compile()", async () => {
 
 test("createCompiler rejects pending and later calls after a worker error or terminate()", async () => {
   const fake = () => {
-    const listeners: Record<string, ((ev: unknown) => void)[]> = {};
+    const listeners: Record<string, (ev: unknown) => void> = {}; // createCompiler registers one listener per type
     const worker = {
       addEventListener: (type: string, fn: (ev: unknown) => void) => {
-        listeners[type] = [...(listeners[type] ?? []), fn];
+        listeners[type] = fn;
       },
       postMessage: () => {},
       terminate: () => {},
@@ -89,7 +90,7 @@ test("createCompiler rejects pending and later calls after a worker error or ter
   const a = fake();
   const c = createBrowserCompiler({ worker: a.worker });
   const pending = c.compile(input);
-  for (const fn of a.listeners.error) fn({ message: "boom" });
+  a.listeners.error({ message: "boom" });
   await assert.rejects(pending, /boom/);
   await assert.rejects(c.compile(input), /boom/);
 
@@ -100,7 +101,6 @@ test("createCompiler rejects pending and later calls after a worker error or ter
 
 test("CLI build -I and check", async () => {
   const dir = await mkdtemp(join(tmpdir(), "hc-"));
-  const cli = ["--experimental-strip-types", "src/cli.ts"];
   const { stdout } = await run("node", [
     ...cli,
     "build",
@@ -137,7 +137,6 @@ test("CLI build -I and check", async () => {
 });
 
 test("CLI rejects an unknown -O level and unknown commands", async () => {
-  const cli = ["--experimental-strip-types", "src/cli.ts"];
   await assert.rejects(
     run("node", [...cli, "build", "examples/hello.c", "-O9"]),
     (e: { code: number; stderr: string }) => e.code === 1 && /-O9/.test(e.stderr),

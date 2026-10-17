@@ -27,18 +27,12 @@ const api = createApi({
   loadBinaryen,
 });
 
-const needBaseUrl = (opts?: ToolchainOptions) => {
-  if (opts?.baseUrl === undefined) throw new Error("baseUrl is required in browsers");
-};
-export const compile: typeof api.compile = async (input) => {
-  needBaseUrl(input);
-  return api.compile(input);
-};
-export const check: typeof api.check = async (input) => {
-  needBaseUrl(input);
-  return api.check(input);
-};
-export const prefetchToolchain: typeof api.prefetchToolchain = async (opts) => {
-  needBaseUrl(opts);
-  return api.prefetchToolchain(opts);
-};
+const needBaseUrl =
+  <A extends ToolchainOptions | undefined, R>(f: (a: A) => Promise<R>) =>
+  async (a: A) => {
+    if (a?.baseUrl === undefined) throw new Error("baseUrl is required in browsers");
+    return f(a);
+  };
+export const compile: typeof api.compile = needBaseUrl(api.compile);
+export const check: typeof api.check = needBaseUrl(api.check);
+export const prefetchToolchain: typeof api.prefetchToolchain = needBaseUrl(api.prefetchToolchain);
