@@ -162,14 +162,17 @@ export function createApi({
   readCleaner,
   loadBinaryen,
 }: {
-  readCleaner: () => Promise<BufferSource>;
+  readCleaner: () => Promise<ArrayBuffer | Uint8Array>;
   loadBinaryen: (baseUrl?: string | URL) => Promise<Binaryen>;
 }) {
   let cleaner: Promise<WebAssembly.Module> | undefined;
-  const cleanerModule = () => (cleaner ??= readCleaner().then((bytes) => WebAssembly.compile(bytes)));
+  const cleanerModule = () => (cleaner ??= readCleaner().then((bytes) => WebAssembly.compile(bytes as BufferSource)));
 
-  /** Fetches the toolchain once, reporting progress. */
-  const prefetchToolchain = (opts?: ToolchainOptions): Promise<void> => getToolchain(opts).then(() => {});
+  /** Fetches clang/lld (reporting progress), binaryen.js and hook-cleaner.wasm, so the first compile does no downloading. */
+  const prefetchToolchain = async (opts?: ToolchainOptions): Promise<void> => {
+    await getToolchain(opts);
+    await Promise.all([loadBinaryen(opts?.baseUrl), cleanerModule()]);
+  };
 
   /** Syntax-only pass for editor diagnostics. Returns clang's output lines (`/src/file:line:col: error: ...`). */
   async function check({ files, entry = "hook.c", ...opts }: CheckInput): Promise<string[]> {
@@ -180,7 +183,8 @@ export function createApi({
       try {
         await runTool(tc, clang, "clang", ["-fsyntax-only", ...CLANG_FLAGS, `/src/${entry}`], logs);
       } catch (e) {
-        if (!(e instanceof ToolExit)) throw e; // a non-zero exit is the expected outcome for broken code
+        // a non-zero exit with an "error:" diagnostic is the expected outcome for broken code; without one it is a crash
+        if (!(e instanceof ToolExit) || !logs.some((l) => l.includes("error:"))) throw e;
       }
       return logs.slice(1); // drop the "$ clang ..." line
     });

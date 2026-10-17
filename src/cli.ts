@@ -21,7 +21,8 @@ const fail = (msg: string): never => {
 async function* walk(dir: string): AsyncGenerator<string> {
   for (const e of await readdir(dir, { withFileTypes: true, recursive: true })) {
     const p = join(e.parentPath, e.name);
-    if (e.isFile() || (e.isSymbolicLink() && (await stat(p)).isFile())) yield p; // stat follows symlinks
+    // stat follows symlinks; a dangling link is skipped, symlinked directories are not followed
+    if (e.isFile() || (e.isSymbolicLink() && (await stat(p).catch(() => undefined))?.isFile())) yield p;
   }
 }
 
@@ -46,6 +47,7 @@ async function build(args: string[]) {
     },
   });
   if (!positionals.length) fail(usage);
+  if (values.O !== undefined && !["0", "1", "2", "3", "s", "z"].includes(values.O)) fail(`unknown optimization level -O${values.O}`);
   const files = await readSources(positionals, values.I ?? []);
   const entry = basename(positionals[0]);
   const opt = values.O ? (`-O${values.O}` as OptLevel) : undefined;
@@ -54,7 +56,7 @@ async function build(args: string[]) {
     entry,
     opt,
     wat: values.wat,
-    onProgress: (f) => process.stderr.write(`\rtoolchain ${Math.floor(f * 100)}%`),
+    onProgress: (f) => process.stderr.write(f < 1 ? `\rtoolchain ${Math.floor(f * 100)}%` : "\rtoolchain 100%\n"),
   });
   console.error(r.logs.join("\n"));
   const out = values.output ?? `${entry.replace(/\.c$/, "")}.wasm`;
@@ -103,7 +105,7 @@ if (cmd === "--help" || cmd === "-h") {
   console.log(usage);
 } else {
   try {
-    await (commands[cmd] ?? (() => fail(usage)))(rest);
+    await (Object.hasOwn(commands, cmd) ? commands[cmd] : () => fail(usage))(rest);
   } catch (e) {
     fail(e instanceof Error ? e.message : String(e));
   }

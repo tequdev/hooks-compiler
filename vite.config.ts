@@ -1,11 +1,13 @@
 import { createReadStream, statSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite";
 
 // The demo serves the toolchain straight from node_modules at the layout `copy-assets` writes:
 // /compiler/clang/* and /compiler/binaryen.js (the worker and cleaner come from the dev server).
 const require = createRequire(import.meta.url);
+const standalone = join(dirname(fileURLToPath(import.meta.url)), "dist/standalone"); // from `pnpm build`, for the standalone-worker e2e
 const clangAssets = join(dirname(require.resolve("@live-codes/clang-wasm")), "../assets");
 
 export default defineConfig({
@@ -18,9 +20,11 @@ export default defineConfig({
           const file =
             path === "/binaryen.js"
               ? require.resolve("binaryen")
-              : path.startsWith("/clang/") && !path.includes("..")
-                ? join(clangAssets, path.slice(7))
-                : undefined;
+              : ["/worker.js", "/browser.js", "/hook-cleaner.wasm"].includes(path)
+                ? join(standalone, path)
+                : path.startsWith("/clang/") && !path.includes("..")
+                  ? join(clangAssets, path.slice(7))
+                  : undefined;
           if (!file || !statSync(file, { throwIfNoEntry: false })?.isFile()) return next();
           res.setHeader("content-type", file.endsWith(".js") ? "text/javascript" : "application/octet-stream");
           createReadStream(file).pipe(res);

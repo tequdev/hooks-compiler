@@ -54,6 +54,7 @@
     "lint": "biome check .",
     "format": "biome format --write .",
     "test": "node --experimental-strip-types --test test/*.test.ts",
+    "test:dist": "node scripts/smoke-dist.mjs",
     "test:e2e": "playwright test",
     "prepack": "pnpm build"
   },

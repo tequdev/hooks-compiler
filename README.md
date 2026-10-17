@@ -13,7 +13,7 @@ C source → clang.wasm → hook.o → wasm-ld.wasm → hook.raw.wasm
 pnpm add hooks-compiler
 ```
 
-The toolchain is clang 22 from `@live-codes/clang-wasm` (pinned to an exact version), which wraps the clang/lld wasm builds from `@wasm-idle/llvm-core`. Node >= 20.12 is required. Node needs nothing else (the ~28 MB of assets ship in the dependency). Browsers need the assets served, see [Browser setup](#browser-setup).
+The toolchain is clang 22 from `@live-codes/clang-wasm` (pinned to an exact version), which wraps the clang/lld wasm builds from `@wasm-idle/llvm-core`. Node >= 20.12 is required. Node needs nothing else (the ~28 MB of assets ship in the dependency). Browsers need the assets served, see [Browser setup](#browser-setup). TypeScript with `moduleResolution: "bundler"` picks the browser types unless `customConditions: ["node"]` is set.
 
 ## Quick start
 
@@ -50,7 +50,7 @@ hooks-compiler copy-assets [directory]   # default ./compiler
 ```
 
 - Positional files are keyed by basename; the first is the entry. The first source for a name wins: positional files, then `-I` dirs in command-line order (as with clang's include search).
-- `-I <dir>` (repeatable) adds every file under `dir`, keyed by its path relative to `dir`, so `-I include` makes `include/sub/x.h` reachable as `#include "sub/x.h"`.
+- `-I <dir>` (repeatable) adds every file under `dir`, keyed by its path relative to `dir`, so `-I include` makes `include/sub/x.h` reachable as `#include "sub/x.h"`. Symlinked files are followed; symlinked directories and dangling links are skipped.
 - `build` logs to stderr and writes `-o` (default `<entry>.wasm`). `--wat` also writes `<out>.wat`. `--json` prints `{ output, sha256, rawSize, optimizedSize, finalSize, imports, exports, wat? }` to stdout instead of `<out> <bytes> bytes sha256 <hash>`.
 - `check` prints diagnostics to stdout and exits 1 if any line contains `error:`.
 
@@ -76,7 +76,7 @@ b. Without a bundler, use the standalone worker (its `baseUrl` defaults to its o
 const compiler = createCompiler({ worker: new Worker("/compiler/worker.js", { type: "module" }) });
 ```
 
-The only asset a bundler resolves is the 60 KB `hook-cleaner.wasm`, through `new URL("./hook-cleaner.wasm", import.meta.url)`; binaryen, and its top-level await, is not in the module graph. Vite build needs `worker.format: "es"` (the worker lazy-loads a chunk, which IIFE workers cannot do). webpack 5 (through Next.js) needs no settings; the earlier `topLevelAwait` requirement no longer applies.
+The only asset a bundler resolves is the ~230 KB `hook-cleaner.wasm`, through `new URL("./hook-cleaner.wasm", import.meta.url)`; binaryen, and its top-level await, is not in the module graph. Vite build needs `worker.format: "es"` (the worker lazy-loads a chunk, which IIFE workers cannot do). webpack 5 (through Next.js) needs no settings; the earlier `topLevelAwait` requirement no longer applies.
 
 Vite dev: keep this package out of dependency pre-bundling, which rewrites `import.meta.url` so the cleaner wasm 404s ("worker error"). Verified on Vite 6 (`vite`, and `vite build` + `vite preview`):
 
@@ -99,7 +99,7 @@ export default { serverExternalPackages: ["hooks-compiler"] };
 import { compile, check, prefetchToolchain, VERSIONS } from "hooks-compiler";
 
 await compile({ files, entry, opt, wat, baseUrl, onProgress });
-await check({ files, entry, baseUrl, onProgress });
+await check({ files, entry, baseUrl, onProgress }); // rejects if clang fails without reporting an error
 await prefetchToolchain({ baseUrl, onProgress });
 ```
 
@@ -137,6 +137,8 @@ wasm-opt runs before hook-cleaner because the cleaner strips the `memory` export
 
 The same sources produce byte-identical output. `pnpm test` compiles `examples/hello.c` three times and compares the SHA-256; the CLI and `createCompiler` are checked against the same hash, and `pnpm test:e2e` checks that the browser demo produces the Node hash.
 
+The toolchain's in-memory filesystem has no delete, so within one process or worker, files from earlier calls stay visible under `/src`; a `#include` of a file you have since removed from `files` still resolves. Use a fresh `createCompiler()` (browser) or process when that matters.
+
 ## Guard check
 
 Not part of the pipeline. Validate the output with the xahaud `hook_validate` RPC (Xahau/xahaud PR #882).
@@ -150,5 +152,6 @@ pnpm dev         # demo page: compiles 3 times and compares hashes (serves /comp
 pnpm build       # tsc → dist/, standalone worker bundle → dist/standalone/
 pnpm lint        # biome check (pnpm format to fix formatting)
 pnpm test        # unit tests, including the CLI
-pnpm test:e2e    # Playwright against the demo (needs: pnpm exec playwright install chromium)
+pnpm test:dist   # smoke-test the built CLI (needs pnpm build)
+pnpm test:e2e    # Playwright against the demo and the standalone worker (needs pnpm build and: pnpm exec playwright install chromium)
 ```

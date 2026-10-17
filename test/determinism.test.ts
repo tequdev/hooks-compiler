@@ -7,6 +7,7 @@ import { join } from "node:path";
 import { test } from "node:test";
 import { promisify } from "node:util";
 import { check, compile, createCompiler, VERSIONS } from "../src/index.node.ts";
+import { createCompiler as createBrowserCompiler } from "../src/index.ts";
 
 const run = promisify(execFile);
 const files = {
@@ -71,6 +72,32 @@ test("createCompiler() matches compile()", async () => {
   c.terminate();
 });
 
+test("createCompiler rejects pending and later calls after a worker error or terminate()", async () => {
+  const fake = () => {
+    const listeners: Record<string, ((ev: unknown) => void)[]> = {};
+    const worker = {
+      addEventListener: (type: string, fn: (ev: unknown) => void) => {
+        listeners[type] = [...(listeners[type] ?? []), fn];
+      },
+      postMessage: () => {},
+      terminate: () => {},
+    };
+    return { worker: worker as unknown as Worker, listeners };
+  };
+  const input = { files: { "hook.c": "" } };
+
+  const a = fake();
+  const c = createBrowserCompiler({ worker: a.worker });
+  const pending = c.compile(input);
+  for (const fn of a.listeners.error) fn({ message: "boom" });
+  await assert.rejects(pending, /boom/);
+  await assert.rejects(c.compile(input), /boom/);
+
+  const b = createBrowserCompiler({ worker: fake().worker });
+  b.terminate();
+  await assert.rejects(b.compile(input), /compiler terminated/);
+});
+
 test("CLI build -I and check", async () => {
   const dir = await mkdtemp(join(tmpdir(), "hc-"));
   const cli = ["--experimental-strip-types", "src/cli.ts"];
@@ -107,4 +134,13 @@ test("CLI build -I and check", async () => {
     run("node", [...cli, "check", broken]),
     (e: { code: number; stdout: string }) => e.code === 1 && e.stdout.includes("error:"),
   );
+});
+
+test("CLI rejects an unknown -O level and unknown commands", async () => {
+  const cli = ["--experimental-strip-types", "src/cli.ts"];
+  await assert.rejects(
+    run("node", [...cli, "build", "examples/hello.c", "-O9"]),
+    (e: { code: number; stderr: string }) => e.code === 1 && /-O9/.test(e.stderr),
+  );
+  await assert.rejects(run("node", [...cli, "constructor"]), (e: { code: number }) => e.code === 1);
 });
