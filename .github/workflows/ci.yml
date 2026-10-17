@@ -23,7 +23,8 @@ jobs:
       - run: pnpm test:dist
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm test:e2e
-  # engines allows Node >= 20.12, but the unit tests need 22.6 (strip-types): only build and smoke-test the dist here
+  # engines allows Node >= 20.12, but the unit tests need 22.6 (strip-types) and pnpm 11 needs 22.13:
+  # install and build on 22, then run the built CLI on 20
   node20:
     runs-on: ubuntu-latest
     steps:
@@ -33,8 +34,11 @@ jobs:
           version: 11
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
-      - run: pnpm test:dist
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20.12
+      - run: node --version && node scripts/smoke-dist.mjs
