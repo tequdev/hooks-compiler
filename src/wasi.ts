@@ -1,7 +1,15 @@
 // Minimal wasi_snapshot_preview1 shim for the C/C++ reactor tools (hook-cleaner).
 const EBADF = 8;
 
-export type Reactor = { exports: Record<string, any> & { memory: WebAssembly.Memory }; output(): string };
+export type Reactor = {
+  exports: {
+    memory: WebAssembly.Memory;
+    malloc(n: number): number;
+    cleaner(input: number, output: number, lenPtr: number): number;
+    _initialize(): void;
+  };
+  output(): string;
+};
 
 export function instantiateReactor(module: WebAssembly.Module): Reactor {
   const dec = new TextDecoder();

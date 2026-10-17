@@ -13,47 +13,67 @@ C source → clang.wasm → hook.o → wasm-ld.wasm → hook.raw.wasm
 pnpm add hooks-compiler
 ```
 
-The toolchain is clang 22 from `@live-codes/clang-wasm` (pinned to an exact version), which wraps the clang/lld wasm builds from `@wasm-idle/llvm-core`.
+The toolchain is clang 22 from `@live-codes/clang-wasm` (pinned to an exact version), which wraps the clang/lld wasm builds from `@wasm-idle/llvm-core`. Node >= 20.12 is required. Node needs nothing else (the ~28 MB of assets ship in the dependency). Browsers need the assets served, see [Browser setup](#browser-setup).
 
-- Node: nothing to do, the ~28 MB of assets ship in the package.
-- Browser: copy the assets somewhere your app serves, then pass that URL as `baseUrl`:
+## Quick start
+
+Node:
+
+```ts
+import { createCompiler } from "hooks-compiler";
+
+const compiler = createCompiler();
+const r = await compiler.compile({ files: { "hook.c": source, "hookapi.h": header } }); // entry defaults to "hook.c"
+r.wasm; r.sha256; r.imports; r.exports; r.logs;
+```
+
+Browser (runs in a Web Worker):
+
+```ts
+import { createCompiler } from "hooks-compiler";
+
+const compiler = createCompiler({ baseUrl: "/compiler/clang/", onProgress: (f) => console.log(f) });
+const r = await compiler.compile({ files: { "hook.c": source }, opt: "-Oz", wat: true });
+const lines = await compiler.check({ "hook.c": source }); // clang -fsyntax-only diagnostics
+await compiler.prefetch(); // download the toolchain ahead of the first compile
+compiler.terminate();
+```
+
+`compile` options: `files`, `entry`, `opt` (`-O0` to `-Oz`, default `-O2`), `wat` (also return the final module as WAT, default false). The Node `createCompiler` runs inline in the current process, `terminate()` is a no-op.
+
+## CLI
 
 ```sh
-npx hooks-compiler-copy-assets public/clang
+hooks-compiler build hook.c -I include -o hook.wasm -Oz [--wat] [--json]
+hooks-compiler check hook.c -I include
+hooks-compiler copy-assets [directory]   # default ./compiler
 ```
 
-## Usage
+- Positional files are keyed by basename; the first is the entry. The first source for a name wins: positional files, then `-I` dirs in command-line order (as with clang's include search).
+- `-I <dir>` (repeatable) adds every file under `dir`, keyed by its path relative to `dir`, so `-I include` makes `include/sub/x.h` reachable as `#include "sub/x.h"`.
+- `build` logs to stderr and writes `-o` (default `<entry>.wasm`). `--wat` also writes `<out>.wat`. `--json` prints `{ output, sha256, rawSize, optimizedSize, finalSize, imports, exports, wat? }` to stdout instead of `<out> <bytes> bytes sha256 <hash>`.
+- `check` prints diagnostics to stdout and exits 1 if any line contains `error:`.
 
-Library:
-
-```ts
-import { compile } from "hooks-compiler";
-
-const r = await compile({ files: { "hook.c": source, "hookapi.h": header } }); // entry defaults to "hook.c"
-r.wasm; r.sha256; r.imports; r.exports; r.wat; r.logs;
-```
-
-Options: `entry`, `opt` (clang level, `-O0` to `-Oz`, default `-O2`), `baseUrl` (toolchain assets, required in browsers), `onProgress(fraction)` (0..1; see `ProgressFn` for the 0.3.0 caveat) for the toolchain download. `check(files, entry?, { baseUrl, onProgress })` runs `clang -fsyntax-only` and returns diagnostic lines. `prefetchToolchain({ baseUrl, onProgress })` downloads the toolchain ahead of the first compile.
-
-Worker:
-
-```ts
-const worker = new Worker(new URL("hooks-compiler/worker", import.meta.url), { type: "module" });
-worker.postMessage({ id: 1, type: "compile", files: { "hook.c": source }, opt: "-Oz", baseUrl: new URL("/clang/", location.href).href }); // or type: "check"
-// replies: { id, progress: number } ..., then { id, result } | { id, lines } | { id, error }
-```
-
-`WorkerRequest` and `WorkerResponse` types are exported from `hooks-compiler/worker`. Until `@live-codes/clang-wasm` fixes its progress callback (registered after the load), only `progress: 1` arrives; show an indeterminate state.
-
-Standalone worker (no bundler configuration): the package ships `dist-worker/` (worker.js, binaryen.js, hook-cleaner.wasm; built by `pnpm build:worker`). Copy it to a static directory, put the toolchain assets in `clang/` beside it, and the worker uses that directory when no `baseUrl` is sent:
+## Browser setup
 
 ```sh
-cp -r node_modules/hooks-compiler/dist-worker public/compiler
-npx hooks-compiler-copy-assets public/compiler/clang
+npx hooks-compiler copy-assets public/compiler
 ```
 
+This creates `public/compiler/` with `worker.js`, `browser.js`, `hook-cleaner.wasm`, `binaryen.js` and `clang/` (the toolchain). Then either:
+
+a. With a bundler, keep the bundled worker and point it at the toolchain:
+
 ```ts
-const worker = new Worker("/compiler/worker.js", { type: "module" });
+const compiler = createCompiler({ baseUrl: "/compiler/clang/" });
+```
+
+A relative `baseUrl` is resolved against the page, not the worker script.
+
+b. Without a bundler, use the standalone worker (its `baseUrl` defaults to `./clang/` beside itself):
+
+```ts
+const compiler = createCompiler({ worker: new Worker("/compiler/worker.js", { type: "module" }) });
 ```
 
 webpack: `binaryen` has a top-level await, so enable it; nothing else is needed.
@@ -68,10 +88,30 @@ Vite: keep this package out of dependency pre-bundling (it rewrites `import.meta
 optimizeDeps: { exclude: ["hooks-compiler"], esbuildOptions: { target: "esnext" } }
 ```
 
-CLI:
+The package's own `new Worker(new URL("./worker.js", import.meta.url))` is the bundler-standard pattern, but it has not been verified under Vite's dependency optimizer. If it misbehaves, pass your own `worker` (option b).
 
-```sh
-hooks-compiler hook.c hookapi.h -o hook.wasm -Oz   # logs on stderr, "<out> <bytes> bytes sha256 <hash>" on stdout
+## Low-level API
+
+```ts
+import { compile, check, prefetchToolchain, VERSIONS } from "hooks-compiler";
+
+await compile({ files, entry, opt, wat, baseUrl, onProgress });
+await check(files, entry, { baseUrl, onProgress });
+await prefetchToolchain({ baseUrl, onProgress });
+```
+
+These run on the calling thread (`hooks-compiler` resolves to the Node build under Node, the browser build elsewhere). `baseUrl` is required in browsers. `onProgress(fraction)` is 0..1; until `@live-codes/clang-wasm` fixes its progress callback (registered after the load), only `1` arrives, so show an indeterminate state.
+
+`VERSIONS` is `{ clangWasm, clang, binaryen }`, the toolchain versions this release is built on.
+
+Worker protocol (`hooks-compiler/worker`, also the standalone `worker.js`): post a `WorkerRequest` with a unique `id`, receive `WorkerResponse` messages with the same `id`.
+
+```ts
+type WorkerRequest =
+  | { id; type: "compile"; files; entry?; opt?; wat?; baseUrl? }
+  | { id; type: "check"; files; entry?; baseUrl? }
+  | { id; type: "prefetch"; baseUrl? };
+type WorkerResponse = { id; progress } | { id; result } | { id; lines } | { id; ok: true } | { id; error };
 ```
 
 ## Exact arguments
@@ -92,7 +132,7 @@ wasm-opt runs before hook-cleaner because the cleaner strips the `memory` export
 
 ## Determinism
 
-The same sources produce byte-identical output. `pnpm test` compiles `examples/hello.c` three times and compares the SHA-256.
+The same sources produce byte-identical output. `pnpm test` compiles `examples/hello.c` three times and compares the SHA-256; the CLI and `createCompiler` are checked against the same hash, and `pnpm test:e2e` checks that the browser demo produces the Node hash.
 
 ## Guard check
 
@@ -101,11 +141,20 @@ Not part of the pipeline. Validate the output with the xahaud `hook_validate` RP
 ## Development
 
 ```sh
-pnpm install        # also builds src/hook-cleaner.wasm from tools/hook-cleaner and copies the toolchain assets to public/clang (prepare)
-pnpm dev            # demo page: compiles 3 times and compares hashes
-pnpm build          # tsc → dist/ (+ hook-cleaner.wasm)
-pnpm build:worker   # standalone worker bundle → dist-worker/
-pnpm test
+pnpm install     # also builds src/hook-cleaner.wasm from tools/hook-cleaner (prepare)
+pnpm dev         # demo page: compiles 3 times and compares hashes (serves the toolchain from node_modules)
+pnpm build       # tsc → dist/, standalone worker bundle → dist/standalone/
+pnpm lint        # biome check (pnpm format to fix formatting)
+pnpm test        # unit tests, including the CLI
+pnpm test:e2e    # Playwright against the demo (needs: pnpm exec playwright install chromium)
 ```
 
 `tools/VENDOR.md` documents the vendored hook-cleaner source.
+
+## Migrating from 0.1
+
+- `hooks-compiler-copy-assets <dir>` is now `hooks-compiler copy-assets <dir>`. It also copies the standalone worker, `hook-cleaner.wasm` and `binaryen.js`, and puts the toolchain in `<dir>/clang/`.
+- `dist-worker/` is gone. Use `copy-assets`; the standalone worker lives in `dist/standalone/`.
+- `CompileResult.wat` is now opt-in: pass `wat: true`.
+- The CLI is `hooks-compiler build <entry.c>` (was `hooks-compiler <entry.c>`), and `hooks-compiler check` is new.
+- Example headers moved to `examples/include/`.

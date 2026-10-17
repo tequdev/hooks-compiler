@@ -1,8 +1,7 @@
 import "@digital-go-jp/design-tokens/dist/tokens-simple.css";
 import hello from "../examples/hello.c?raw";
-import header from "../examples/hookapi.h?raw";
-import type { CompileResult } from "../src/index.ts";
-import type { WorkerRequest, WorkerResponse } from "../src/worker.ts";
+import header from "../examples/include/hookapi.h?raw";
+import { type CompileResult, createCompiler } from "../src/index.ts";
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const source = $<HTMLTextAreaElement>("source");
@@ -10,22 +9,11 @@ const log = $<HTMLPreElement>("log");
 const button = $<HTMLButtonElement>("compile");
 source.value = hello;
 
-const worker = new Worker(new URL("../src/worker.ts", import.meta.url), { type: "module" });
-let nextId = 0;
-const build = (src: string) =>
-  new Promise<CompileResult>((resolve, reject) => {
-    const id = nextId++;
-    const onMessage = (ev: MessageEvent<WorkerResponse>) => {
-      const m = ev.data;
-      if (m.id !== id || "progress" in m) return;
-      worker.removeEventListener("message", onMessage);
-      if ("error" in m) reject(new Error(m.error));
-      else if ("result" in m) resolve(m.result);
-    };
-    worker.addEventListener("message", onMessage);
-    const req: WorkerRequest = { id, type: "compile", files: { "hook.c": src, "hookapi.h": header }, baseUrl: new URL("/clang/", location.href).href };
-    worker.postMessage(req);
-  });
+const compiler = createCompiler({
+  worker: new Worker(new URL("../src/worker.ts", import.meta.url), { type: "module" }),
+  baseUrl: new URL("/", location.href).href,
+});
+const build = (src: string) => compiler.compile({ files: { "hook.c": src, "hookapi.h": header }, wat: true });
 
 const RUNS = 3;
 button.onclick = async () => {
@@ -47,7 +35,7 @@ button.onclick = async () => {
     $("sha256").textContent = r.sha256;
     $("imports").textContent = r.imports.join("\n") || "(none)";
     $("exports").textContent = r.exports.join("\n") || "(none)";
-    $("wat").textContent = r.wat;
+    $("wat").textContent = r.wat ?? "";
     const deterministic = results.every((x) => x.sha256 === r.sha256);
     const status = $("deterministic");
     status.textContent = `Deterministic: ${deterministic ? "YES" : "NO"}`;

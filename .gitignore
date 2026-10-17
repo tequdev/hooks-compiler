@@ -1,6 +1,6 @@
 node_modules
 dist
-dist-worker
 aube-lock.yaml
 src/hook-cleaner.wasm
-public/clang
+test-results
+playwright-report
