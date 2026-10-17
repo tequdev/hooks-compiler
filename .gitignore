@@ -1,6 +1,5 @@
 node_modules
 dist
 aube-lock.yaml
-src/hook-cleaner.wasm
 test-results
 playwright-report

@@ -1,6 +1,6 @@
 # hooks-compiler
 
-Deterministic Xahau C Hook compiler. Clang, lld, wasm-opt and hook-cleaner all run as WebAssembly, in the browser (Web Worker) or in Node. No compiler server.
+Deterministic Xahau C Hook compiler. Clang, lld, wasm-opt and hook-cleaner all run as WebAssembly, in the browser (Web Worker) or in Node. No compiler server. hook-cleaner is the `wasm32-wasi` build from the [tequdev/hook-cleaner](https://github.com/tequdev/hook-cleaner) release (version in `VERSIONS`, pinned by sha256 in `tools/hook-cleaner.json`).
 
 ```text
 C source → clang.wasm → hook.o → wasm-ld.wasm → hook.raw.wasm
@@ -144,12 +144,11 @@ Not part of the pipeline. Validate the output with the xahaud `hook_validate` RP
 ## Development
 
 ```sh
-pnpm install     # also builds src/hook-cleaner.wasm from tools/hook-cleaner (prepare)
+pnpm install     # installs only; src/hook-cleaner.wasm is committed
+pnpm update-cleaner [version]  # re-download the pinned hook-cleaner release (with a version: re-pin it, then review the diff)
 pnpm dev         # demo page: compiles 3 times and compares hashes (serves /compiler/ from node_modules)
 pnpm build       # tsc → dist/, standalone worker bundle → dist/standalone/
 pnpm lint        # biome check (pnpm format to fix formatting)
 pnpm test        # unit tests, including the CLI
 pnpm test:e2e    # Playwright against the demo (needs: pnpm exec playwright install chromium)
 ```
-
-`tools/VENDOR.md` documents the vendored hook-cleaner source.

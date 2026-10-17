@@ -21,7 +21,7 @@ export type CompileInput = {
 
 export type CheckInput = { files: Record<string, string>; entry?: string } & ToolchainOptions;
 
-export const VERSIONS = { clangWasm: "0.3.0", binaryen: "132.0.0" } as const;
+export const VERSIONS = { clangWasm: "0.3.0", binaryen: "132.0.0", hookCleaner: "0.2.2" } as const;
 
 /** What `createCompiler` returns: the same pipeline behind promises, optionally in a worker. */
 export type Compiler = {

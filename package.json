@@ -47,7 +47,7 @@
     "dist"
   ],
   "scripts": {
-    "prepare": "node --experimental-strip-types scripts/build-cleaner.ts",
+    "update-cleaner": "node --experimental-strip-types scripts/update-cleaner.ts",
     "build": "rm -rf dist && tsc -p tsconfig.build.json && cp src/hook-cleaner.wasm src/dynamic-import.js dist/ && vite build --config vite.worker.config.ts",
     "dev": "vite",
     "typecheck": "tsc --noEmit",

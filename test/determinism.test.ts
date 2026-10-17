@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
+import { createHash } from "node:crypto";
 import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -52,6 +53,14 @@ test("VERSIONS match the pinned dependencies", async () => {
   const { dependencies } = JSON.parse(await readFile("package.json", "utf8"));
   assert.equal(VERSIONS.clangWasm, dependencies["@live-codes/clang-wasm"]);
   assert.equal(VERSIONS.binaryen, dependencies.binaryen);
+  const pin = JSON.parse(await readFile("tools/hook-cleaner.json", "utf8"));
+  assert.equal(VERSIONS.hookCleaner, pin.version);
+  assert.equal(
+    createHash("sha256")
+      .update(await readFile("src/hook-cleaner.wasm"))
+      .digest("hex"),
+    pin.sha256,
+  );
 });
 
 test("createCompiler() matches compile()", async () => {
