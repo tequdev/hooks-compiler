@@ -130,6 +130,23 @@ function withMvpModule<T>(binaryen: Binaryen, bytes: Uint8Array, invalid: string
   }
 }
 
+/**
+ * Xahau requires every hook to import the guard function `env._g`, but lld only imports what the
+ * source references and wasm-opt drops unused imports. Runs after optimize() so it is not removed
+ * again. Signature matches hookapi.h: int32_t _g(uint32_t guard_id, uint32_t maxiter).
+ * Returns true when the import was added.
+ */
+function ensureGuardImport(binaryen: Binaryen, m: ReturnType<Binaryen["readBinary"]>): boolean {
+  for (let i = 0; i < m.getNumFunctions(); i++) {
+    const f = binaryen.getFunctionInfo(m.getFunctionByIndex(i));
+    if (f.module === "env" && f.base === "_g") return false;
+  }
+  let name = "_g";
+  while (m.getFunction(name)) name = `${name}_`; // avoid clashing with an internal function name
+  m.addFunctionImport(name, "env", "_g", binaryen.createType([binaryen.i32, binaryen.i32]), binaryen.i32);
+  return true;
+}
+
 function runCleaner(mod: WebAssembly.Module, input: Uint8Array): Uint8Array {
   const r = instantiateReactor(mod);
   const ex = r.exports;
@@ -211,6 +228,7 @@ export function createApi({
       binaryen.setOptimizeLevel(2);
       binaryen.setShrinkLevel(2);
       m.optimize();
+      if (ensureGuardImport(binaryen, m)) logs.push("added import env._g (not referenced by the source)");
       return m.emitBinary();
     });
     logs.push(`hook.opt.wasm: ${optimized.length} bytes`);
