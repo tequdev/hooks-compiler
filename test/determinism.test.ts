@@ -143,3 +143,10 @@ test("CLI rejects an unknown -O level and unknown commands", async () => {
   );
   await assert.rejects(run("node", [...cli, "constructor"]), (e: { code: number }) => e.code === 1);
 });
+
+test("env._g is imported even when the source never calls it", async () => {
+  const src = '#include "hookapi.h"\nint64_t hook(uint32_t r) { return accept(0, 0, 0); }\n';
+  const r = await compile({ files: { ...files, "hook.c": src } });
+  assert.ok(r.imports.includes("env._g"), r.imports.join(", "));
+  assert.ok(WebAssembly.validate(r.wasm as BufferSource));
+});
