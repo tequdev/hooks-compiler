@@ -43,7 +43,7 @@ compiler.terminate();
 
 ## C++ hooks
 
-An entry named `.cpp`, `.cc` or `.cxx` is compiled as freestanding C++20: the C flags above plus `-std=c++20 -ffreestanding -fno-exceptions -fno-rtti -fno-stack-protector` (the flag set of [xahau-hooks-cpp](https://github.com/tequdev/xahau-hooks-cpp)'s `hookc`). The toolchain ships no C++ standard headers, so a hook brings its own `<cstdint>` and friends; with xahau-hooks-cpp that is its `include/xahau/cstd` directory, passed as a second `-I` so that `<cstdint>` resolves:
+An entry named `.cpp`, `.cc` or `.cxx` is compiled as freestanding C++20: the C flags (see [Exact arguments](#exact-arguments)) plus `-std=c++20 -ffreestanding -fno-exceptions -fno-rtti -fno-stack-protector` (the flag set of [xahau-hooks-cpp](https://github.com/tequdev/xahau-hooks-cpp)'s `hookc`). The toolchain ships no C++ standard headers, so a hook brings its own `<cstdint>` and friends; with xahau-hooks-cpp that is its `include/xahau/cstd` directory, passed as a second `-I` so that `<cstdint>` resolves:
 
 ```sh
 hooks-compiler build examples/01-accept-all/src/hook.cpp -I include -I include/xahau/cstd
