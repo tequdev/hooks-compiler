@@ -67,7 +67,7 @@ const LLD_ARGS = [
 
 class ToolExit extends Error {}
 
-type Tools = { tc: Toolchain; clang: WebAssembly.Module; lld: WebAssembly.Module };
+type Tools = { tc: Toolchain; clang: WebAssembly.Module; lld: WebAssembly.Module; written: Set<string> }; // written: /src names from earlier calls
 const toolchains = new Map<string, Promise<Tools>>();
 
 function getToolchain({ baseUrl, onProgress }: ToolchainOptions = {}): Promise<Tools> {
@@ -87,7 +87,7 @@ function getToolchain({ baseUrl, onProgress }: ToolchainOptions = {}): Promise<T
       const [clang, lld] = await Promise.all([runtime.getModule(runtime.assetUrls.clang), runtime.getModule(runtime.assetUrls.lld)]);
       runtime.memfs.addDirectory("build");
       onProgress?.(1);
-      return { tc, clang, lld };
+      return { tc, clang, lld, written: new Set() };
     })();
     toolchains.set(key, p);
     p.catch(() => toolchains.delete(key)); // allow a retry after a failed download
@@ -108,12 +108,19 @@ async function runTool(tc: Toolchain, mod: WebAssembly.Module, name: string, arg
   }
 }
 
-// ponytail: memfs has no delete, so files from earlier compiles stay visible in /src (a stale
-// `#include "old.h"` could still resolve). Upgrade path: a fresh directory per compile.
 // `path` is relative (`src/x.c`): tc.addFile breaks on a leading slash; clang still sees it as /src/x.c.
 function put(tc: Toolchain, path: string, text: string) {
   if (tc.runtime.memfs.hasFile(path)) tc.runtime.memfs.setFile(path, new TextEncoder().encode(text));
   else tc.addFile(path, text);
+}
+
+/** Writes `files` under /src. memfs has no delete, so a name written by an earlier call and absent now is replaced by an #error stub: a stale `#include` fails instead of resolving. */
+function sync({ tc, written }: Tools, files: Record<string, string>) {
+  for (const [name, text] of Object.entries(files)) {
+    put(tc, `src/${name}`, text);
+    written.add(name);
+  }
+  for (const name of written) if (!Object.hasOwn(files, name)) put(tc, `src/${name}`, `#error "${name} is not in files"\n`);
 }
 
 export type Binaryen = typeof import("binaryen").default;
@@ -184,9 +191,10 @@ export function createApi({
 
   /** Syntax-only pass for editor diagnostics. Returns clang's output lines (`/src/file:line:col: error: ...`). */
   async function check({ files, entry = "hook.c", ...opts }: CheckInput): Promise<string[]> {
-    const { tc, clang } = await getToolchain(opts);
+    const tools = await getToolchain(opts);
+    const { tc, clang } = tools;
     return tc.lock(async () => {
-      for (const [name, text] of Object.entries(files)) put(tc, `src/${name}`, text);
+      sync(tools, files);
       const logs: string[] = [];
       try {
         await runTool(tc, clang, "clang", ["-fsyntax-only", ...CLANG_FLAGS, `/src/${entry}`], logs);
@@ -201,11 +209,12 @@ export function createApi({
   async function compile(input: CompileInput): Promise<CompileResult> {
     const logs: string[] = [];
     const entry = input.entry ?? "hook.c";
-    const { tc, clang, lld } = await getToolchain(input);
+    const tools = await getToolchain(input);
+    const { tc, clang, lld } = tools;
 
     // The runtime is single-process and shared: hold the lock for every file write and tool run.
     const raw = await tc.lock(async () => {
-      for (const [name, text] of Object.entries(input.files)) put(tc, `src/${name}`, text);
+      sync(tools, input.files);
       await runTool(tc, clang, "clang", [...CLANG_FLAGS, input.opt ?? "-O2", "-c", `/src/${entry}`, "-o", "/build/hook.o"], logs);
       await runTool(tc, lld, "wasm-ld", LLD_ARGS, logs);
       return Uint8Array.from(tc.runtime.memfs.getFileContents("/build/hook.raw.wasm")); // a view into wasm memory: copy

@@ -58,6 +58,19 @@ test("changed source changes the hash, the original reproduces it (memfs overlay
   assert.equal(c.sha256, a.sha256);
 });
 
+test("a file dropped from `files` no longer resolves in a later call", async () => {
+  const src = files["hook.c"].replace('#include "hookapi.h"', '#include "hookapi.h"\n#include "extra.h"');
+  const withExtra = { ...files, "hook.c": src, "extra.h": "" };
+  await compile({ files: withExtra });
+  await assert.rejects(compile({ files: { ...files, "hook.c": src } }), /extra\.h is not in files/);
+  const lines = await check({ files: { ...files, "hook.c": src } });
+  assert.ok(
+    lines.some((l) => l.includes("error:") && l.includes("extra.h is not in files")),
+    lines.join("\n"),
+  );
+  assert.ok(await compile({ files: withExtra })); // adding it back works
+});
+
 test("VERSIONS match the pinned dependencies", async () => {
   const { dependencies } = JSON.parse(await readFile("package.json", "utf8"));
   assert.equal(VERSIONS.clangWasm, dependencies["@live-codes/clang-wasm"]);
