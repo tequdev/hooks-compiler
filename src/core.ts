@@ -130,6 +130,14 @@ function withMvpModule<T>(binaryen: Binaryen, bytes: Uint8Array, invalid: string
   }
 }
 
+function hasImport(binaryen: Binaryen, m: ReturnType<Binaryen["readBinary"]>, module: string, base: string): boolean {
+  for (let i = 0; i < m.getNumFunctions(); i++) {
+    const info = binaryen.getFunctionInfo(m.getFunctionByIndex(i));
+    if (info.module === module && info.base === base) return true;
+  }
+  return false;
+}
+
 function runCleaner(mod: WebAssembly.Module, input: Uint8Array): Uint8Array {
   const r = instantiateReactor(mod);
   const ex = r.exports;
@@ -211,6 +219,12 @@ export function createApi({
       binaryen.setOptimizeLevel(2);
       binaryen.setShrinkLevel(2);
       m.optimize();
+      // xahaud rejects a hook that does not import _g, and so does the cleaner. Import it here so a hook
+      // only needs _g() where it has a loop; a top-level _g(1,1) is no longer required.
+      if (!hasImport(binaryen, m, "env", "_g")) {
+        logs.push("adding the env._g import");
+        m.addFunctionImport("_g", "env", "_g", binaryen.createType([binaryen.i32, binaryen.i32]), binaryen.i32);
+      }
       return m.emitBinary();
     });
     logs.push(`hook.opt.wasm: ${optimized.length} bytes`);
