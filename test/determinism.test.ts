@@ -26,11 +26,18 @@ test("same source compiles to identical, valid MVP bytes", async (t) => {
     results.map((x) => x.sha256).join(", "),
   );
   assert.ok(WebAssembly.validate(r.wasm as BufferSource));
-  assert.deepEqual(r.imports, ["env._g", "env.accept"]);
+  assert.deepEqual(r.imports, ["env.accept", "env._g"]); // hello.c has no loop and no _g(): the compiler adds the import
   assert.deepEqual(r.exports, ["hook"]);
   assert.ok(r.finalSize < r.rawSize);
   assert.match(r.wat ?? "", /\(module/);
   assert.equal(results[1].wat, undefined);
+});
+
+test("a hook that calls _g itself keeps a single env._g import", async () => {
+  const src = files["hook.c"].replace("accept(", "for (uint32_t i = 0; GUARD(3), i < reserved; i++) rollback(0, 0, i);\n    accept(");
+  const r = await compile({ files: { ...files, "hook.c": src } });
+  assert.deepEqual(r.imports, ["env._g", "env.accept", "env.rollback"]);
+  assert.ok(!r.logs.includes("adding the env._g import"), r.logs.join("\n"));
 });
 
 test("check() reports compiler errors", async () => {

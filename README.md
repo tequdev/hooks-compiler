@@ -131,6 +131,8 @@ wasm-ld --no-entry --allow-undefined --export=hook --export-if-defined=cbak /bui
 
 wasm-opt (binaryen.js): read the module, `setFeatures(Features.MVP)`, validate, `setOptimizeLevel(2)`, `setShrinkLevel(2)` (`-Oz`), `optimize()`, `emitBinary()`.
 
+After wasm-opt, if the module does not import `env._g`, the import is added (binaryen `addFunctionImport`, type `(i32, i32) -> i32`). xahaud and hook-cleaner both reject a hook without it, so a hook needs `_g()` only where it has a loop; the customary top-level `_g(1, 1)` can be dropped, which shrinks the code and the worst-case execution count.
+
 wasm-opt runs before hook-cleaner because the cleaner strips the `memory` export, and a later wasm-opt would then dead-code-eliminate the memory and data segment. The module is restricted to the WebAssembly MVP because binaryen otherwise ORs in any `target_features` section and may emit post-MVP opcodes; compiling with `-mcpu=mvp` and validating under MVP rejects those up front.
 
 ## Determinism
@@ -141,7 +143,7 @@ The toolchain's in-memory filesystem has no delete, so within one process or wor
 
 ## Guard check
 
-Not part of the pipeline. Validate the output with the xahaud `hook_validate` RPC (Xahau/xahaud PR #882).
+Not part of the pipeline. Validate the output with the xahaud `hook_validate` RPC (Xahau/xahaud PR #882). The `env._g` import that the check requires is always present (see above); loops still need a `_g()` call as their first instruction.
 
 ## Development
 
