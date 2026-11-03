@@ -6,8 +6,8 @@ import { parseArgs } from "node:util";
 import { check, compile, type OptLevel } from "./index.node.ts";
 
 const usage = `usage:
-  hooks-compiler build <entry.c|entry.cpp> [more source/header files...] [-I <dir>]... [-o out.wasm] [-O0|-O1|-O2|-O3|-Os|-Oz] [--wat] [--json]
-  hooks-compiler check <entry.c|entry.cpp> [more files...] [-I <dir>]...
+  hooks-compiler build <entry.c> [more .c/.h files...] [-I <dir>]... [-o out.wasm] [-O0|-O1|-O2|-O3|-Os|-Oz] [--wat] [--json]
+  hooks-compiler check <entry.c> [more files...] [-I <dir>]...
   hooks-compiler copy-assets [directory]   (default ./compiler; pass its served URL as baseUrl)
 
 -I <dir>  add every file under dir (keyed by its path relative to dir), repeatable; first source for a name wins

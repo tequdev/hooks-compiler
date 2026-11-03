@@ -14,7 +14,7 @@ export type ToolchainOptions = {
 
 export type CompileInput = {
   files: Record<string, string>; // every .c/.h, placed under /src; headers resolve via -I/src
-  entry?: string; // the .c (or .cpp/.cc/.cxx) file to compile, default "hook.c"
+  entry?: string; // the .c file to compile, default "hook.c" (.cpp/.cc/.cxx: experimental, see README)
   opt?: OptLevel; // clang optimization level, default -O2
   wat?: boolean; // also emit the final module as WAT, default false
 } & ToolchainOptions;
