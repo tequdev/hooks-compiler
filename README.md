@@ -139,7 +139,7 @@ wasm-opt runs before hook-cleaner because the cleaner strips the `memory` export
 
 The same sources produce byte-identical output. `pnpm test` compiles `examples/hello.c` three times and compares the SHA-256; the CLI and `createCompiler` are checked against the same hash, and `pnpm test:e2e` checks that the browser demo produces the Node hash.
 
-The toolchain's in-memory filesystem has no delete, so within one process or worker, files from earlier calls stay visible under `/src`; a `#include` of a file you have since removed from `files` still resolves. Use a fresh `createCompiler()` (browser) or process when that matters.
+The toolchain's in-memory filesystem has no delete, so within one process or worker, files from earlier calls stay under `/src`. A name that an earlier call wrote and the current `files` lacks is overwritten with an `#error` stub, so a `#include` of a file you have since removed fails instead of silently resolving. Only `files` determines the output.
 
 ### Determinism check
 
