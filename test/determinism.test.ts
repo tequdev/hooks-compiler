@@ -3,7 +3,7 @@ import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { test } from "node:test";
 import { promisify } from "node:util";
 import { check, compile, createCompiler, VERSIONS } from "../src/index.node.ts";
@@ -38,6 +38,25 @@ test("a hook that calls _g itself keeps a single env._g import", async () => {
   const r = await compile({ files: { ...files, "hook.c": src } });
   assert.deepEqual(r.imports, ["env._g", "env.accept", "env.rollback"]);
   assert.ok(!r.logs.includes("adding the env._g import"), r.logs.join("\n"));
+});
+
+test("a .cpp entry compiles as freestanding C++20", async () => {
+  // The toolchain ships no C++ standard headers: a C++ hook declares (or vendors) its own types.
+  const src = `using int64_t = long long; using uint32_t = unsigned int;
+extern "C" int64_t accept(uint32_t, uint32_t, int64_t);
+template <typename T> struct Box { T v; constexpr T get() const { return v; } };
+extern "C" int64_t hook(uint32_t) { constexpr Box<int64_t> b{42}; return accept(0, 0, b.get()); }`;
+  const r = await compile({ files: { "hook.cpp": src }, entry: "hook.cpp" });
+  assert.deepEqual(r.imports, ["env.accept", "env._g"]);
+  assert.deepEqual(r.exports, ["hook"]);
+  assert.equal(r.sha256, (await compile({ files: { "hook.cpp": src }, entry: "hook.cpp" })).sha256);
+  assert.ok(r.logs[0].includes("-std=c++20"), r.logs[0]);
+  assert.ok(!(await compile({ files })).logs[0].includes("-std=c++20")); // the C path is unchanged
+  const lines = await check({ files: { "hook.cpp": "long long hook(unsigned) { throw 1; }" }, entry: "hook.cpp" });
+  assert.ok(
+    lines.some((l) => l.includes("error:") && l.includes("exceptions disabled")),
+    lines.join("\n"),
+  );
 });
 
 test("check() reports compiler errors", async () => {
@@ -147,6 +166,14 @@ test("CLI build -I and check", async () => {
     e.stdout.includes("from-a"),
   );
   await run("node", [...cli, "check", "examples/hello.c", "-I", b, "-I", a]);
+
+  const cpp = join(dir, "hook.cpp");
+  await writeFile(
+    cpp,
+    'extern "C" long long accept(unsigned, unsigned, long long); extern "C" long long hook(unsigned) { return accept(0, 0, 0); }',
+  );
+  await run("node", [cli[0], resolve(cli[1]), "build", cpp], { cwd: dir }); // no -o: the default output name
+  assert.ok((await readFile(join(dir, "hook.wasm"))).length > 0); // hook.cpp -> hook.wasm, not hook.cpp.wasm
 
   const broken = join(dir, "broken.c");
   await writeFile(broken, "int hook(int r){ return undeclared(r); }");

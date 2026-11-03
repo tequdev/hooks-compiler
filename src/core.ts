@@ -14,7 +14,7 @@ export type ToolchainOptions = {
 
 export type CompileInput = {
   files: Record<string, string>; // every .c/.h, placed under /src; headers resolve via -I/src
-  entry?: string; // the .c file to compile, default "hook.c"
+  entry?: string; // the .c (or .cpp/.cc/.cxx) file to compile, default "hook.c"
   opt?: OptLevel; // clang optimization level, default -O2
   wat?: boolean; // also emit the final module as WAT, default false
 } & ToolchainOptions;
@@ -55,6 +55,10 @@ const CLANG_FLAGS = [
   "-w", // and no warnings at all; -Werror= above still applies
   "-I/src",
 ];
+// Appended for a C++ entry (.cpp/.cc/.cxx): the flag set of xahau-hooks-cpp's `hookc`. The toolchain ships no C++
+// standard headers, so hooks are freestanding and must bring their own <cstdint> etc.
+const CXX_FLAGS = ["-std=c++20", "-ffreestanding", "-fno-exceptions", "-fno-rtti", "-fno-stack-protector"];
+const clangFlags = (entry: string) => (/\.(cpp|cc|cxx)$/i.test(entry) ? [...CLANG_FLAGS, ...CXX_FLAGS] : CLANG_FLAGS);
 const LLD_ARGS = [
   "--no-entry",
   "--allow-undefined",
@@ -197,7 +201,7 @@ export function createApi({
       sync(tools, files);
       const logs: string[] = [];
       try {
-        await runTool(tc, clang, "clang", ["-fsyntax-only", ...CLANG_FLAGS, `/src/${entry}`], logs);
+        await runTool(tc, clang, "clang", ["-fsyntax-only", ...clangFlags(entry), `/src/${entry}`], logs);
       } catch (e) {
         // a non-zero exit with an "error:" diagnostic is the expected outcome for broken code; without one it is a crash
         if (!(e instanceof ToolExit) || !logs.some((l) => l.includes("error:"))) throw e;
@@ -215,7 +219,7 @@ export function createApi({
     // The runtime is single-process and shared: hold the lock for every file write and tool run.
     const raw = await tc.lock(async () => {
       sync(tools, input.files);
-      await runTool(tc, clang, "clang", [...CLANG_FLAGS, input.opt ?? "-O2", "-c", `/src/${entry}`, "-o", "/build/hook.o"], logs);
+      await runTool(tc, clang, "clang", [...clangFlags(entry), input.opt ?? "-O2", "-c", `/src/${entry}`, "-o", "/build/hook.o"], logs);
       await runTool(tc, lld, "wasm-ld", LLD_ARGS, logs);
       return Uint8Array.from(tc.runtime.memfs.getFileContents("/build/hook.raw.wasm")); // a view into wasm memory: copy
     });
