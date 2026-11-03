@@ -59,7 +59,7 @@ async function build(args: string[]) {
     onProgress: (f) => process.stderr.write(f < 1 ? `\rtoolchain ${Math.floor(f * 100)}%` : "\rtoolchain 100%\n"),
   });
   console.error(r.logs.join("\n"));
-  const out = values.output ?? `${entry.replace(/\.c$/, "")}.wasm`;
+  const out = values.output ?? `${entry.replace(/\.(c|cpp|cc|cxx)$/i, "")}.wasm`;
   await writeFile(out, r.wasm);
   if (r.wat !== undefined) await writeFile(`${out.replace(/\.wasm$/, "")}.wat`, r.wat);
   if (values.json) {

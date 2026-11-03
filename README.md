@@ -41,6 +41,16 @@ compiler.terminate();
 
 `compile` options: `files`, `entry`, `opt` (`-O0` to `-Oz`, default `-O2`), `wat` (also return the final module as WAT, default false). The Node `createCompiler` runs inline in the current process, `terminate()` is a no-op.
 
+## C++ hooks (experimental)
+
+Experimental: the C++ path may change or go away in a minor release, and it is not covered by the determinism fixtures. An entry named `.cpp`, `.cc` or `.cxx` is compiled as freestanding C++20: the C flags (see [Exact arguments](#exact-arguments)) plus `-std=c++20 -ffreestanding -fno-exceptions -fno-rtti -fno-stack-protector` (the flag set of [xahau-hooks-cpp](https://github.com/tequdev/xahau-hooks-cpp)'s `hookc`). The toolchain ships no C++ standard headers, so a hook brings its own `<cstdint>` and friends; with xahau-hooks-cpp that is its `include/xahau/cstd` directory, passed as a second `-I` so that `<cstdint>` resolves:
+
+```sh
+hooks-compiler build examples/01-accept-all/src/hook.cpp -I include -I include/xahau/cstd
+```
+
+All of that repository's examples build this way and pass xahaud's guard-checker. The output is usually smaller than `hookc`'s because wasm-opt runs after clang.
+
 ## CLI
 
 ```sh
